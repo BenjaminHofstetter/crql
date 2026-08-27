@@ -1,5 +1,5 @@
 {
-  "name": "rdf-query-language",
+  "name": "crql",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
