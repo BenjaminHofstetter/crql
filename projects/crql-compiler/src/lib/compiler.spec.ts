@@ -66,7 +66,7 @@ describe('CRQL Formal Language Test Suite', () => {
   });
 
   describe('Mixins & Parameterization', () => {
-    it('expands basic mixins using @mixin and @get', () => {
+    it('expands basic mixins using @mixin and @use', () => {
       const input = `
         @mixin --name-and-address {
           schema:name ?companyName ;
@@ -78,7 +78,7 @@ describe('CRQL Formal Language Test Suite', () => {
         }
 
         :--estoniaCompanies {
-          @get --name-and-address ;
+          @use --name-and-address ;
         }
       `;
 
@@ -86,24 +86,6 @@ describe('CRQL Formal Language Test Suite', () => {
 
       expect(sparql).toContain('schema:name ?companyName');
       expect(sparql).toContain('schema:address ?companyAddress');
-    });
-
-    it('supports @include and @use as inclusion directives alongside @get', () => {
-      const input = `
-        @mixin --address {
-          schema:address ?addr ;
-        }
-
-        :--company {
-          @include --address ;
-          @use --address ;
-        }
-      `;
-
-      const sparql = compileCrql(input);
-
-      expect(sparql).toContain('schema:address ?addr_mx1');
-      expect(sparql).toContain('schema:address ?addr_mx2');
     });
 
     it('assigns unique variable suffixes (_mx1, _mx2) to prevent mixin variable collisions', () => {
@@ -128,7 +110,7 @@ describe('CRQL Formal Language Test Suite', () => {
 
         :--product {
           schema:name ?name => ui:name ;
-          @get --permissionType ;
+          @use --permissionType ;
         }
       `;
 
@@ -147,12 +129,12 @@ describe('CRQL Formal Language Test Suite', () => {
 
         @mixin --country($allowedLangs = "de,fr") {
           schema:countryOfOrigin {
-            @get --localizedName($allowedLangs) ;
+            @use --localizedName($allowedLangs) ;
           }
         }
 
         :--product {
-          @get --country("de,it") ;
+          @use --country("de,it") ;
         }
       `;
 
@@ -172,7 +154,7 @@ describe('CRQL Formal Language Test Suite', () => {
         }
 
         :--product {
-          @get --permissionType ;
+          @use --permissionType ;
         }
       `;
 
@@ -193,7 +175,7 @@ describe('CRQL Formal Language Test Suite', () => {
         }
 
         :--product {
-          @get --permissionType ;
+          @use --permissionType ;
         }
       `;
 
@@ -228,7 +210,7 @@ describe('CRQL Formal Language Test Suite', () => {
         }
 
         :--product {
-          @get --substance ;
+          @use --substance ;
         }
       `;
 
@@ -265,7 +247,7 @@ describe('CRQL Formal Language Test Suite', () => {
         }
 
         :--product {
-          @get --substance ;
+          @use --substance ;
         }
       `;
 
@@ -296,7 +278,7 @@ describe('CRQL Formal Language Test Suite', () => {
         }
 
         :--product {
-          @get --substance ;
+          @use --substance ;
         }
       `;
 
@@ -330,7 +312,7 @@ describe('CRQL Formal Language Test Suite', () => {
         }
 
         :--product {
-          @get --country ;
+          @use --country ;
         }
       `;
 
@@ -349,9 +331,9 @@ describe('CRQL Formal Language Test Suite', () => {
           schema:name ?productName => ui:name ;
           schema:countryOfOrigin {
             schema:name ?countryName => ui:country ;
-            @get --langFilter(?countryName, "de,fr") ;
+            @use --langFilter(?countryName, "de,fr") ;
           }
-          @get --langFilter(?productName, "de,en,fr,it") ;
+          @use --langFilter(?productName, "de,en,fr,it") ;
         }
       `;
 
@@ -361,7 +343,7 @@ describe('CRQL Formal Language Test Suite', () => {
       expect(sparql).toContain('FILTER(LANG(?productName) IN ("de", "en", "fr", "it"))');
     });
 
-    it('aligns variable names in sub-mixins (@get --langFilter(?countryName)) with parent mixin scoping (?countryName_mx1)', () => {
+    it('aligns variable names in sub-mixins (@use --langFilter(?countryName)) with parent mixin scoping (?countryName_mx1)', () => {
       const input = `
         @prefix schema: <http://schema.org/>;
         @prefix ui: <https://myapp>;
@@ -373,12 +355,12 @@ describe('CRQL Formal Language Test Suite', () => {
         @mixin --country() {
           schema:countryOfOrigin {
             schema:name ?countryName => ui:countryName ;
-            @get --langFilter(?countryName)
+            @use --langFilter(?countryName)
           }
         }
 
         :--product {
-          @get --country ;
+          @use --country ;
         }
       `;
 

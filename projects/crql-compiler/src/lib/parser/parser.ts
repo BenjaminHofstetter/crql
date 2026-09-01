@@ -12,7 +12,7 @@ import {
   FallbackBlockNode,
   FilterNode,
   FunctionCallNode,
-  GetDirectiveNode,
+  UseDirectiveNode,
   LangDirectiveNode,
   MixinNode,
   NestedTraversalNode,
@@ -398,8 +398,8 @@ export class Parser {
   private parseRuleBodyItem(inheritedSubject?: string): BodyItemNode | null {
     const token = this.peek();
 
-    if (token.type === 'AT_GET') {
-      return this.parseGetDirective();
+    if (token.type === 'AT_USE') {
+      return this.parseUseDirective();
     }
 
     if (token.type === 'AT_FALLBACK') {
@@ -750,24 +750,22 @@ export class Parser {
     };
   }
 
-  private parseGetDirective(): GetDirectiveNode {
-    this.consume('AT_GET', "Expected '@get'");
+  private parseUseDirective(): UseDirectiveNode {
+    this.consume('AT_USE', "Expected '@use'");
     const mixinNameToken = this.consume('MIXIN_NAME', 'Expected mixin name starting with --');
 
     const args: ExpressionNode[] = [];
     if (this.check('LPAREN')) {
       this.advance();
       while (!this.check('RPAREN') && !this.isAtEnd()) {
-        const startPos = this.pos;
         args.push(this.parseExpression());
         if (this.check('COMMA')) this.advance();
-        if (this.pos === startPos) this.advance();
       }
-      this.consume('RPAREN', "Expected ')'");
+      this.consume('RPAREN', "Expected ')' after mixin args");
     }
 
     return {
-      type: 'GetDirectiveNode',
+      type: 'UseDirectiveNode',
       mixinName: mixinNameToken.value,
       args
     };

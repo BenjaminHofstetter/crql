@@ -23,13 +23,13 @@ const input2 = `
     schema:name ?companyName ;
   }
   @custom-selector :--estoniaCompanies { ?focusNode a ex:Company . }
-  :--estoniaCompanies { @get --name-and-address ; }
+  :--estoniaCompanies { @use --name-and-address ; }
 `;
 const sparql2 = compileCrql(input2);
 if (!sparql2.includes('schema:name ?companyName')) {
   throw new Error('Test 2 failed!');
 }
-console.log('✔ Test 2: @mixin & @get passed');
+console.log('✔ Test 2: @mixin & @use passed');
 
 const input3 = `:--company { schema:legalName => ui:title ; }`;
 const sparql3 = compileCrql(input3);
@@ -108,7 +108,7 @@ const input10 = `
   }
   :--swissCompany {
     schema:name ?name ;
-    @get --class-icon ;
+    @use --class-icon ;
   }
 `;
 const sparql10 = compileCrql(input10);
@@ -116,7 +116,7 @@ if (!sparql10.includes('?focusNode_1 ui:icon ?icon_mx1 .') || !sparql10.includes
   console.log('SPARQL10 Output:\n', sparql10);
   throw new Error('Test 10 failed!');
 }
-console.log('✔ Test 10: nested traversal inside @mixin & @get passed');
+console.log('✔ Test 10: nested traversal inside @mixin & @use passed');
 
 const input11 = `
   @mixin --permissionType {
@@ -128,7 +128,7 @@ const input11 = `
     a => appPrefix:permissionType ?productType ;
   }
   :--productRules {
-    @get --permissionType ;
+    @use --permissionType ;
   }
 `;
 const sparql11 = compileCrql(input11);
@@ -149,7 +149,7 @@ const input12 = `
     ex:reviewCount ?reviewCount ;
   }
   :--popularProducts {
-    @get --reviewStats ;
+    @use --reviewStats ;
   }
 `;
 const sparql12 = compileCrql(input12);
@@ -215,7 +215,7 @@ const input15 = `
 
   :--product {
     schema:name ?name => ui:name ;
-    @get --permissionType
+    @use --permissionType
   }
 `;
 const sparql15 = compileCrql(input15);
@@ -237,7 +237,7 @@ const input16 = `
     ?productType schema:name ?premissionName => ui:permissionType ;
   }
   :--product {
-    @get --permissionType ;
+    @use --permissionType ;
   }
 `;
 const sparql16 = compileCrql(input16);
@@ -259,7 +259,7 @@ const input17 = `
     ?productType schema:name ?premissionName => ?productType ui:permissionType ;
   }
   :--product {
-    @get --permissionType ;
+    @use --permissionType ;
   }
 `;
 const sparql17 = compileCrql(input17);
@@ -297,8 +297,8 @@ const input18 = `
 
   :--product {
     schema:name ?name => ui:name ;
-    @get --permissionType; 
-    @get --category ;
+    @use --permissionType; 
+    @use --category ;
   }
 `;
 const sparql18 = compileCrql(input18);
@@ -317,12 +317,12 @@ const input19 = `
 
   @mixin --country($allowedLangs = "de,fr") {
     schema:countryOfOrigin {
-      @get --localizedName($allowedLangs) ;
+      @use --localizedName($allowedLangs) ;
     }
   }
 
   :--product {
-    @get --country("de,it") ;
+    @use --country("de,it") ;
   }
 `;
 const sparql19 = compileCrql(input19);
@@ -339,7 +339,7 @@ const input20 = `
   }
 
   :--swissCo {
-    @get --company("de,fr") ;
+    @use --company("de,fr") ;
   }
 `;
 const sparql20 = compileCrql(input20);
@@ -359,7 +359,7 @@ const input21 = `
   }
 
   :--product {
-    @get --country ;
+    @use --country ;
   }
 `;
 const sparql21 = compileCrql(input21);
@@ -378,9 +378,9 @@ const input22 = `
     schema:name ?productName => ui:name ;
     schema:countryOfOrigin {
       schema:name ?countryName => ui:country ;
-      @get --langFilter(?countryName, "de,fr") ;
+      @use --langFilter(?countryName, "de,fr") ;
     }
-    @get --langFilter(?productName, "de,en,fr,it") ;
+    @use --langFilter(?productName, "de,en,fr,it") ;
   }
 `;
 const sparql22 = compileCrql(input22);
@@ -402,12 +402,12 @@ const input23 = `
   @mixin --country() {
     schema:countryOfOrigin {
       schema:name ?countryName => ui:countryName ;
-      @get --langFilter(?countryName)
+      @use --langFilter(?countryName)
     }
   }
 
   :--product {
-    @get --country ;
+    @use --country ;
   }
 `;
 const sparql23 = compileCrql(input23);
@@ -435,7 +435,7 @@ const input24 = `
   }
 
   :--product {
-    @get --permissionType ;
+    @use --permissionType ;
   }
 `;
 const sparql24 = compileCrql(input24);
@@ -468,7 +468,7 @@ const input25 = `
   }
 
   :--product {
-    @get --substance ;
+    @use --substance ;
   }
 `;
 const sparql25 = compileCrql(input25);
@@ -505,7 +505,7 @@ const input26 = `
   }
 
   :--product {
-    @get --substance ;
+    @use --substance ;
   }
 `;
 const sparql26 = compileCrql(input26);
@@ -541,7 +541,7 @@ const input27 = `
   }
 
   :--product {
-    @get --substance ;
+    @use --substance ;
   }
 `;
 const sparql27 = compileCrql(input27);

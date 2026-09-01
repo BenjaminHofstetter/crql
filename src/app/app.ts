@@ -41,23 +41,20 @@ export class App {
     },
     {
       id: 'mixins',
-      title: '2. Reusable Property Mixins (@mixin & @get)',
-      description: 'Define property extractions once and re-use them across multiple selector blocks.',
-      code: `@prefix schema: <https://schema.org/>;
-@prefix ui: <http://example.org/ui/vocab#>;
-
-@mixin --name-and-address {
+      title: '2. Reusable Property Mixins (@mixin & @use)',
+      description: 'Demonstrates modularizing property mapping rules into reusable mixins.',
+      code: `@mixin --name-and-address {
   schema:name ?companyName ;
   schema:address ?companyAddress ;
 }
 
-@custom-selector :--targetCompanies {
+@custom-selector :--estoniaCompanies {
   ?focusNode a ex:Company .
+  ?focusNode ex:headQuarterCountry ex:Estonia .
 }
 
-:--targetCompanies {
-  @get --name-and-address ;
-  ui:icon "business" ;
+:--estoniaCompanies {
+  @use --name-and-address ;
 }`
     },
     {
@@ -166,11 +163,11 @@ export class App {
              ex:headQuarterCountry ex:Germany .
 }
 
-/* Query Block 1: Using @mixin & @get */
+/* Query Block 1: Using @mixin & @use */
 :--swissCompanies {
   schema:name ?name ;
   schema:address ?address ;
-  @get --class-icon ;
+  @use --class-icon ;
 }
 
 /* Query Block 2: Inline version without mixin */
@@ -229,7 +226,7 @@ export class App {
 
 :--product {
   schema:name ?name => ui:name ;
-  @get --permissionType ;
+  @use --permissionType ;
 }`
     },
     {
@@ -263,12 +260,12 @@ export class App {
 /* Parent mixin calling sub-mixin with parameter forwarding */
 @mixin --country($allowedLangs = "de,fr") {
   schema:countryOfOrigin {
-    @get --localizedName($allowedLangs) ;
+    @use --localizedName($allowedLangs) ;
   }
 }
 
 :--product {
-  @get --country("de,it") ;
+  @use --country("de,it") ;
 }`
     }
   ];

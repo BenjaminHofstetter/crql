@@ -9,7 +9,7 @@
 1. [Lexical Structure & Grammar](#1-lexical-structure--grammar)
 2. [Prefix Declarations](#2-prefix-declarations)
 3. [Custom Selectors (`@custom-selector`)](#3-custom-selectors-custom-selector)
-4. [Mixins (`@mixin` and `@get`)](#4-mixins-mixin-and-get)
+4. [Mixins (`@mixin` and `@use`)](#4-mixins-mixin-and-use)
 5. [Rule Blocks (`:--selector`)](#5-rule-blocks---selector)
 6. [Turtle-Style Predicate List Chaining](#6-turtle-style-predicate-list-chaining)
 7. [Nested Block Traversals](#7-nested-block-traversals)
@@ -28,7 +28,7 @@
 - **Full URIs**: `<http://schema.org/name>`, `<https://agriculture.ld.admin.ch/...>`
 - **SPARQL Variables**: Start with `?` (e.g. `?name`, `?focusNode`, `?ingredient`). Reserved variable `?focusNode` refers to the query's root subject.
 - **Mixin Parameters**: Start with `$` or `?` (e.g. `$langs`, `$allowedLangs`, `?var`).
-- **Directives**: Start with `@` (e.g. `@prefix`, `@custom-selector`, `@mixin`, `@get`, `@where`, `@lang`, `@limit`, `@offset`, `@order-by`).
+- **Directives**: Start with `@` (e.g. `@prefix`, `@custom-selector`, `@mixin`, `@use`, `@where`, `@lang`, `@limit`, `@offset`, `@order-by`).
 - **Custom Selectors**: Start with `:--` (e.g. `:--product`, `:--estoniaCompanies`).
 - **Mixin Names**: Start with `--` (e.g. `--permissionType`, `--localizedName`).
 
@@ -65,7 +65,7 @@ When evaluated, statements inside `@custom-selector` bind constraints to `?focus
 
 ---
 
-## 4. Mixins (`@mixin` and `@get`)
+## 4. Mixins (`@mixin` and `@use`)
 
 ### 4.1 Basic Mixins
 Mixins define reusable blocks of query patterns:
@@ -77,11 +77,11 @@ Mixins define reusable blocks of query patterns:
 }
 ```
 
-Included into rule blocks using `@get`:
+Included into rule blocks using `@use`:
 
 ```css
 :--company {
-  @get --name-and-address ;
+  @use --name-and-address ;
 }
 ```
 
@@ -96,12 +96,12 @@ Mixins accept default values and passed arguments:
 }
 
 :--product {
-  @get --country("de,it") ;
+  @use --country("de,it") ;
 }
 ```
 
 ### 4.3 Automatic Mixin Variable Scoping
-To prevent variable collision across multiple `@get` invocations, local mixin variables (excluding parameters and `?focusNode`) are automatically assigned unique instance suffixes during expansion (e.g., `?share_mx1`, `?share_mx2`).
+To prevent variable collision across multiple `@use` invocations, local mixin variables (excluding parameters and `?focusNode`) are automatically assigned unique instance suffixes during expansion (e.g., `?share_mx1`, `?share_mx2`).
 
 ### 4.4 Mixin Composition & Forwarding
 Mixins can invoke other mixins and recursively forward parameters:
@@ -112,7 +112,7 @@ Mixins can invoke other mixins and recursively forward parameters:
 }
 
 @mixin --parentMixin($pLangs = "de,en") {
-  @get --subMixin($pLangs) ;
+  @use --subMixin($pLangs) ;
 }
 ```
 
@@ -219,7 +219,7 @@ Compiles to `FILTER(LANG(?premissionName) IN ("de", "en"))`.
 }
 
 :--product {
-  @get --langFilter(?productName, "de,fr") ;
+  @use --langFilter(?productName, "de,fr") ;
 }
 ```
 
@@ -469,7 +469,7 @@ functionCall
 AT_PREFIX          : '@prefix' ;
 AT_CUSTOM_SELECTOR : '@custom-selector' ;
 AT_MIXIN           : '@mixin' ;
-AT_GET             : '@get' ;
+AT_USE             : '@use' ;
 AT_WHERE           : '@where' ;
 AT_LANG            : '@lang' ;
 AT_LIMIT           : '@limit' ;

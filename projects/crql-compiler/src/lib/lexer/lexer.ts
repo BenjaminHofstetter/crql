@@ -279,10 +279,8 @@ export class Lexer {
         return { type: 'AT_CUSTOM_SELECTOR', value, line, column };
       case '@mixin':
         return { type: 'AT_MIXIN', value, line, column };
-      case '@get':
-      case '@include':
       case '@use':
-        return { type: 'AT_GET', value, line, column };
+        return { type: 'AT_USE', value, line, column };
       case '@fallback':
         return { type: 'AT_FALLBACK', value, line, column };
       case '@import':

@@ -7,7 +7,7 @@ import {
   ExpressionNode,
   FilterNode,
   FunctionCallNode,
-  GetDirectiveNode,
+  UseDirectiveNode,
   LangDirectiveNode,
   MixinNode,
   NestedTraversalNode,
@@ -160,7 +160,7 @@ export class Resolver {
   }
 
   private collectBodyVariables(
-    bodyItems: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | ValuesBlockNode | SubSelectNode | BindNode | unknown>,
+    bodyItems: Array<PropertyPatternNode | UseDirectiveNode | NestedTraversalNode | ValuesBlockNode | SubSelectNode | BindNode | unknown>,
     definedVars: Set<string>
   ): void {
     for (const item of bodyItems) {
@@ -173,9 +173,9 @@ export class Resolver {
           definedVars.add(propItem.value.name);
         }
       }
-      const getDir = item as GetDirectiveNode;
-      if (getDir.type === 'GetDirectiveNode' && this.mixins.has(getDir.mixinName)) {
-        const mixinDef = this.mixins.get(getDir.mixinName)!;
+      const useDir = item as UseDirectiveNode;
+      if (useDir.type === 'UseDirectiveNode' && this.mixins.has(useDir.mixinName)) {
+        const mixinDef = this.mixins.get(useDir.mixinName)!;
         this.collectBodyVariables(mixinDef.body, definedVars);
       }
       const nested = item as NestedTraversalNode;
@@ -214,7 +214,7 @@ export class Resolver {
   }
 
   private expandBodyItem(
-    item: PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | ValuesBlockNode | SubSelectNode | BindNode | unknown,
+    item: PropertyPatternNode | UseDirectiveNode | NestedTraversalNode | ValuesBlockNode | SubSelectNode | BindNode | unknown,
     whereSubject: string,
     constructSubject: string,
     whereClauseLines: string[],
@@ -367,10 +367,10 @@ export class Resolver {
       return;
     }
 
-    const getDirective = item as GetDirectiveNode;
-    if (getDirective.type === 'GetDirectiveNode') {
-      if (this.mixins.has(getDirective.mixinName)) {
-        const mixinDef = this.mixins.get(getDirective.mixinName)!;
+    const useDirective = item as UseDirectiveNode;
+    if (useDirective.type === 'UseDirectiveNode') {
+      if (this.mixins.has(useDirective.mixinName)) {
+        const mixinDef = this.mixins.get(useDirective.mixinName)!;
         const mixinScopeId = `mx${mixinCounter.count++}`;
         const varMap = new Map<string, string>();
 
@@ -381,8 +381,8 @@ export class Resolver {
             const paramKey = paramDef.name.replace(/^\$/, '');
             let paramVal: unknown = undefined;
 
-            if (getDirective.args && i < getDirective.args.length) {
-              const argExpr = getDirective.args[i];
+            if (useDirective.args && i < useDirective.args.length) {
+              const argExpr = useDirective.args[i];
               if (argExpr.type === 'VariableNode') {
                 paramVal = argExpr.name;
               } else {
@@ -537,7 +537,7 @@ export class Resolver {
         variable: this.scopeVar(item.variable, mixinScopeId, varMap, paramNames)
       };
     }
-    if (item.type === 'GetDirectiveNode') {
+    if (item.type === 'UseDirectiveNode') {
       return {
         ...item,
         args: item.args ? item.args.map(arg => this.scopeExpression(arg, mixinScopeId, varMap, paramNames)) : []

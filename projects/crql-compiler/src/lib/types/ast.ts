@@ -2,7 +2,7 @@ export type TokenType =
   | 'AT_PREFIX'
   | 'AT_CUSTOM_SELECTOR'
   | 'AT_MIXIN'
-  | 'AT_GET'
+  | 'AT_USE'
   | 'AT_FALLBACK'
   | 'AT_IMPORT'
   | 'AT_LIMIT'
@@ -135,7 +135,7 @@ export interface FilterNode {
 
 export type BodyItemNode =
   | PropertyPatternNode
-  | GetDirectiveNode
+  | UseDirectiveNode
   | NestedTraversalNode
   | FallbackBlockNode
   | ValuesBlockNode
@@ -172,8 +172,8 @@ export interface SelectorExprNode {
   isNegated?: boolean; // e.g. :not(...)
 }
 
-export interface GetDirectiveNode {
-  type: 'GetDirectiveNode';
+export interface UseDirectiveNode {
+  type: 'UseDirectiveNode';
   mixinName: string; // e.g. "--name-and-address"
   args: ExpressionNode[];
 }

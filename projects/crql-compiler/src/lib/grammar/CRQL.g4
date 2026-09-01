@@ -53,7 +53,7 @@ bodyBlock: (bodyItem (SEMI | DOT)?)*;
 
 bodyItem:
 	propertyPattern
-	| getDirective
+	| useDirective
 	| nestedTraversal
 	| whereModifier
 	| langDirective
@@ -75,8 +75,8 @@ targetPredicate: CURIE | IDENTIFIER | IRI_REF;
 langAttrFilter:
 	LBRACKET LANG_KEY EQUALS (PARAM_VAR | STRING_LITERAL | expr) RBRACKET;
 
-getDirective:
-	AT_GET MIXIN_NAME (LPAREN (expr (COMMA expr)*)? RPAREN)?;
+useDirective:
+	AT_USE MIXIN_NAME (LPAREN (expr (COMMA expr)*)? RPAREN)?;
 
 nestedTraversal: CARET? IDENTIFIER GT? LBRACE bodyBlock RBRACE;
 
@@ -147,7 +147,7 @@ AT_PREFIX: '@prefix';
 AT_CUSTOM_SELECTOR: '@custom-selector';
 AT_SELECTOR: '@selector';
 AT_MIXIN: '@mixin';
-AT_GET: '@get';
+AT_USE: '@use';
 AT_WHERE: '@where';
 AT_LANG: '@lang';
 AT_LIMIT: '@limit';
