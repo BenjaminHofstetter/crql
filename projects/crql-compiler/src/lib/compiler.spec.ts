@@ -88,6 +88,24 @@ describe('CRQL Formal Language Test Suite', () => {
       expect(sparql).toContain('schema:address ?companyAddress');
     });
 
+    it('supports @include and @use as inclusion directives alongside @get', () => {
+      const input = `
+        @mixin --address {
+          schema:address ?addr ;
+        }
+
+        :--company {
+          @include --address ;
+          @use --address ;
+        }
+      `;
+
+      const sparql = compileCrql(input);
+
+      expect(sparql).toContain('schema:address ?addr_mx1');
+      expect(sparql).toContain('schema:address ?addr_mx2');
+    });
+
     it('assigns unique variable suffixes (_mx1, _mx2) to prevent mixin variable collisions', () => {
       const input = `
         @prefix schema: <http://schema.org/>;
