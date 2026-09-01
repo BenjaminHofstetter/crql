@@ -391,4 +391,31 @@ if (!sparql22.includes('FILTER(LANG(?countryName) IN ("de", "fr"))') ||
 }
 console.log('✔ Test 22: standalone reusable language filter mixin @mixin --langFilter(?var, $langs) passed');
 
-console.log('All 22 CRQL Compiler tests passed successfully!');
+const input23 = `
+  @prefix schema: <http://schema.org/>;
+  @prefix ui: <https://myapp>;
+
+  @mixin --langFilter(?var, $langs = "de,en,fr,it") {
+    @lang(?var, $langs) ;
+  }
+
+  @mixin --country() {
+    schema:countryOfOrigin {
+      schema:name ?countryName => ui:countryName ;
+      @get --langFilter(?countryName)
+    }
+  }
+
+  :--product {
+    @get --country ;
+  }
+`;
+const sparql23 = compileCrql(input23);
+if (!sparql23.includes('?child_1_schema_countryOfOrigin schema:name ?countryName_mx1 .') ||
+    !sparql23.includes('FILTER(LANG(?countryName_mx1) IN ("de", "en", "fr", "it"))')) {
+  console.log('SPARQL23 Output:\n', sparql23);
+  throw new Error('Test 23 failed!');
+}
+console.log('✔ Test 23: mixin-in-mixin variable scoping alignment (?countryName_mx1) passed');
+
+console.log('All 23 CRQL Compiler tests passed successfully!');

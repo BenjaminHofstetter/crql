@@ -527,6 +527,12 @@ export class Resolver {
         variable: this.scopeVar(item.variable, mixinScopeId, varMap)
       };
     }
+    if (item.type === 'GetDirectiveNode') {
+      return {
+        ...item,
+        args: item.args ? item.args.map(arg => this.scopeExpression(arg, mixinScopeId, varMap)) : []
+      };
+    }
     if (item.type === 'NestedTraversalNode') {
       return {
         ...item,
