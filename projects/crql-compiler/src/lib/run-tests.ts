@@ -310,4 +310,63 @@ if (!sparql18.includes('?focusNode_1 psm:productType ?child_1_psm_productType .'
 }
 console.log('✔ Test 18: nested block traversal (psm:productType { ... }) passed');
 
-console.log('All 18 CRQL Compiler tests passed successfully!');
+const input19 = `
+  @mixin --localizedName($langs = "de,en") {
+    schema:name[lang=$langs] ?name => ui:name ;
+  }
+
+  @mixin --country($allowedLangs = "de,fr") {
+    schema:countryOfOrigin {
+      @get --localizedName($allowedLangs) ;
+    }
+  }
+
+  :--product {
+    @get --country("de,it") ;
+  }
+`;
+const sparql19 = compileCrql(input19);
+if (!sparql19.includes('FILTER(LANG(?name_mx1) IN ("de", "it"))')) {
+  console.log('SPARQL19 Output:\n', sparql19);
+  throw new Error('Test 19 failed!');
+}
+console.log('✔ Test 19: nested mixin invocation & parameter forwarding passed');
+
+const input20 = `
+  @mixin --company($allowedLangs = "de,en,fr") {
+    ex:employeeCount ?empCount ;
+    schema:name[lang=$allowedLangs] ?companyName => ui:name ;
+  }
+
+  :--swissCo {
+    @get --company("de,fr") ;
+  }
+`;
+const sparql20 = compileCrql(input20);
+if (!sparql20.includes('FILTER(LANG(?companyName_mx1) IN ("de", "fr"))') ||
+    sparql20.includes('LANG(?empCount)')) {
+  console.log('SPARQL20 Output:\n', sparql20);
+  throw new Error('Test 20 failed!');
+}
+console.log('✔ Test 20: property attribute filter [lang=$langs] isolates language string variable passed');
+
+const input21 = `
+  @mixin --country {
+    schema:countryOfOrigin {
+      schema:name ?countryName => ui:country ;
+    }
+    FILTER(LANG(?countryName) IN ("de", "en"))
+  }
+
+  :--product {
+    @get --country ;
+  }
+`;
+const sparql21 = compileCrql(input21);
+if (!sparql21.includes('FILTER(LANG(?countryName_mx1) IN ("de", "en"))')) {
+  console.log('SPARQL21 Output:\n', sparql21);
+  throw new Error('Test 21 failed!');
+}
+console.log('✔ Test 21: native SPARQL FILTER(...) statement inside mixin passed');
+
+console.log('All 21 CRQL Compiler tests passed successfully!');

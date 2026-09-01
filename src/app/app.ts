@@ -247,6 +247,29 @@ export class App {
   schema:name ?name ;
   ex:registrationStatus ?status ;
 }`
+    },
+    {
+      id: 'lang-filter',
+      title: '10. Parameterized Language Filtering & Nested Mixins',
+      description: 'Filter language-tagged string literals using property-level [lang=$langs], nested mixin calls, or native SPARQL FILTER(...).',
+      code: `@prefix schema: <http://schema.org/>;
+@prefix ui: <https://myapp>;
+
+/* Sub-mixin with parameterized language filter on specific property */
+@mixin --localizedName($langs = "de,en") {
+  schema:name[lang=$langs] ?name => ui:name ;
+}
+
+/* Parent mixin calling sub-mixin with parameter forwarding */
+@mixin --country($allowedLangs = "de,fr") {
+  schema:countryOfOrigin {
+    @get --localizedName($allowedLangs) ;
+  }
+}
+
+:--product {
+  @get --country("de,it") ;
+}`
     }
   ];
 

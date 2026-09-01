@@ -10,8 +10,10 @@ import {
   DocumentNode,
   ExpressionNode,
   FallbackBlockNode,
+  FilterNode,
   FunctionCallNode,
   GetDirectiveNode,
+  LangDirectiveNode,
   MixinNode,
   NestedTraversalNode,
   NumberLiteralNode,
@@ -46,6 +48,7 @@ export class Parser {
     const customSelectors: CustomSelectorNode[] = [];
     const mixins: MixinNode[] = [];
     const rules: RuleBlockNode[] = [];
+    const langDirectives: LangDirectiveNode[] = [];
 
     while (!this.isAtEnd()) {
       const token = this.peek();
@@ -56,6 +59,8 @@ export class Parser {
         customSelectors.push(this.parseCustomSelectorDef());
       } else if (token.type === 'AT_MIXIN') {
         mixins.push(this.parseMixinDef());
+      } else if (token.type === 'AT_LANG') {
+        langDirectives.push(this.parseLangDirective());
       } else if (
         token.type === 'CUSTOM_SELECTOR_NAME' ||
         token.type === 'IDENTIFIER' ||
@@ -73,7 +78,8 @@ export class Parser {
       prefixes,
       customSelectors,
       mixins,
-      rules
+      rules,
+      langDirectives
     };
   }
 
@@ -377,6 +383,14 @@ export class Parser {
       return this.parseFallbackBlock();
     }
 
+    if (token.type === 'AT_LANG') {
+      return this.parseLangDirective();
+    }
+
+    if (token.type === 'IDENTIFIER' && token.value.toUpperCase() === 'FILTER') {
+      return this.parseFilterNode();
+    }
+
     if (token.type === 'AT_VALUES' || (token.type === 'IDENTIFIER' && token.value.toUpperCase() === 'VALUES')) {
       return this.parseValuesBlock();
     }
@@ -447,6 +461,28 @@ export class Parser {
     if (this.check('IDENTIFIER')) {
       const predicate = this.advance().value;
 
+      let langFilter: ExpressionNode | string[] | undefined = undefined;
+      if (this.check('LBRACKET')) {
+        const startPos = this.pos;
+        this.advance(); // consume '['
+        const attrToken = this.peek();
+        if (attrToken.type === 'IDENTIFIER' && attrToken.value.toLowerCase() === 'lang') {
+          this.advance(); // consume 'lang'
+          this.consume('EQUALS', "Expected '=' after lang");
+          if (this.check('PARAM_VAR')) {
+            langFilter = this.parseExpression();
+          } else if (this.check('STRING_LITERAL')) {
+            const rawVal = this.advance().value;
+            langFilter = rawVal.split(',').map(s => s.trim());
+          } else {
+            langFilter = this.parseExpression();
+          }
+          this.consume('RBRACKET', "Expected ']' at end of lang filter");
+        } else {
+          this.pos = startPos; // rewind if not lang attribute
+        }
+      }
+
       let value: ExpressionNode | undefined = undefined;
       let targetPredicate: string | undefined = undefined;
       let constructSubject: string | undefined = undefined;
@@ -491,7 +527,8 @@ export class Parser {
         targetPredicate,
         constructSubject,
         value,
-        isWhereOnly
+        isWhereOnly,
+        langFilter
       };
     }
 
@@ -624,6 +661,75 @@ export class Parser {
       type: 'BindNode',
       expressionText: exprText.trim(),
       variable: varToken.value
+    };
+  }
+
+  private parseLangDirective(): LangDirectiveNode {
+    this.consume('AT_LANG', "Expected '@lang'");
+    let targetVar: string | undefined = undefined;
+
+    if (this.check('LPAREN')) {
+      this.advance();
+      if (this.check('VARIABLE')) {
+        targetVar = this.advance().value;
+        if (this.check('COMMA')) this.advance();
+      }
+      const expr = this.parseExpression();
+      this.consume('RPAREN', "Expected ')' after @lang");
+      return {
+        type: 'LangDirectiveNode',
+        targetVar,
+        languages: expr
+      };
+    } else {
+      if (this.check('PARAM_VAR')) {
+        const expr = this.parseExpression();
+        return {
+          type: 'LangDirectiveNode',
+          languages: expr
+        };
+      }
+      const langs: string[] = [];
+      while (this.check('STRING_LITERAL')) {
+        langs.push(this.advance().value);
+        if (this.check('COMMA')) this.advance();
+      }
+      return {
+        type: 'LangDirectiveNode',
+        languages: langs.length > 0 ? langs : ['de', 'en', 'fr', 'it']
+      };
+    }
+  }
+
+  private parseFilterNode(): FilterNode {
+    this.consume('IDENTIFIER', "Expected 'FILTER'");
+    this.consume('LPAREN', "Expected '(' after FILTER");
+
+    let depth = 1;
+    let exprText = '';
+    while (depth > 0 && !this.isAtEnd()) {
+      const tok = this.peek();
+      if (tok.type === 'LPAREN') {
+        depth++;
+        const lastWord = exprText.trim().split(/\s+/).pop() || '';
+        const isFnCall = /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(lastWord) && lastWord.toUpperCase() !== 'IN' && lastWord.toUpperCase() !== 'NOT';
+        exprText += (isFnCall || exprText.length === 0 || exprText.endsWith('(') ? '' : ' ') + '(';
+      } else if (tok.type === 'RPAREN') {
+        depth--;
+        if (depth > 0) exprText += ')';
+      } else if (tok.type === 'STRING_LITERAL') {
+        exprText += (exprText.length > 0 && !exprText.endsWith('(') && !exprText.endsWith(' ') ? ' ' : '') + `"${tok.value}"`;
+      } else if (tok.type === 'COMMA') {
+        exprText += ', ';
+      } else {
+        exprText += (exprText.length > 0 && !exprText.endsWith('(') && !exprText.endsWith(', ') && !exprText.endsWith(' ') ? ' ' : '') + tok.value;
+      }
+      this.advance();
+    }
+
+    return {
+      type: 'FilterNode',
+      expressionText: exprText.trim()
     };
   }
 

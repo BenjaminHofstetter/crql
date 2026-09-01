@@ -5,8 +5,10 @@ import {
   CustomSelectorPattern,
   DocumentNode,
   ExpressionNode,
+  FilterNode,
   FunctionCallNode,
   GetDirectiveNode,
+  LangDirectiveNode,
   MixinNode,
   NestedTraversalNode,
   PageDirectiveNode,
@@ -244,6 +246,28 @@ export class Resolver {
       return;
     }
 
+    const langItem = item as LangDirectiveNode;
+    if (langItem.type === 'LangDirectiveNode') {
+      const targetVar = langItem.targetVar || Array.from(definedVars).pop() || '?name';
+      let langExpr = '';
+      if (typeof langItem.languages === 'object' && !Array.isArray(langItem.languages)) {
+        langExpr = this.expressionToString(langItem.languages, paramsMap);
+      } else if (Array.isArray(langItem.languages)) {
+        langExpr = langItem.languages.join(',');
+      } else {
+        langExpr = String(langItem.languages);
+      }
+      const langs = langExpr.replace(/^"|"$/g, '').split(',').map(s => `"${s.trim()}"`);
+      whereClauseLines.push(`FILTER(LANG(${targetVar}) IN (${langs.join(', ')}))`);
+      return;
+    }
+
+    const filterItem = item as FilterNode;
+    if (filterItem.type === 'FilterNode') {
+      whereClauseLines.push(`FILTER(${filterItem.expressionText})`);
+      return;
+    }
+
     const propertyItem = item as PropertyPatternNode;
 
     if (propertyItem.type === 'PropertyPatternNode') {
@@ -263,6 +287,18 @@ export class Resolver {
       if (valExpr.type === 'VariableNode') {
         const varName = valExpr.name;
         whereClauseLines.push(`${itemWhereSubject} ${propertyItem.predicate} ${varName} .`);
+        if (propertyItem.langFilter) {
+          let langExpr = '';
+          if (typeof propertyItem.langFilter === 'object' && !Array.isArray(propertyItem.langFilter)) {
+            langExpr = this.expressionToString(propertyItem.langFilter, paramsMap);
+          } else if (Array.isArray(propertyItem.langFilter)) {
+            langExpr = propertyItem.langFilter.join(',');
+          } else {
+            langExpr = String(propertyItem.langFilter);
+          }
+          const langs = langExpr.replace(/^"|"$/g, '').split(',').map(s => `"${s.trim()}"`);
+          whereClauseLines.push(`FILTER(LANG(${varName}) IN (${langs.join(', ')}))`);
+        }
         if (!propertyItem.isWhereOnly) {
           constructTriples.push({ subject: itemConstructSubject, predicate: targetPred, object: varName });
         }
@@ -303,11 +339,32 @@ export class Resolver {
         const mixinScopeId = `mx${mixinCounter.count++}`;
         const varMap = new Map<string, string>();
 
+        const childParamsMap: Record<string, unknown> = { ...paramsMap };
+        if (mixinDef.params && mixinDef.params.length > 0) {
+          for (let i = 0; i < mixinDef.params.length; i++) {
+            const paramDef = mixinDef.params[i];
+            const paramKey = paramDef.name.replace(/^\$/, '');
+            let paramVal: unknown = undefined;
+
+            if (getDirective.args && i < getDirective.args.length) {
+              const argExpr = getDirective.args[i];
+              paramVal = this.expressionToString(argExpr, paramsMap).replace(/^"|"$/g, '');
+            } else if (paramDef.defaultValue) {
+              paramVal = this.expressionToString(paramDef.defaultValue, paramsMap).replace(/^"|"$/g, '');
+            }
+
+            if (paramVal !== undefined) {
+              childParamsMap[paramKey] = paramVal;
+              childParamsMap[`$${paramKey}`] = paramVal;
+            }
+          }
+        }
+
         const scopedBody = mixinDef.body.map(bItem => this.scopeBodyItem(bItem, mixinScopeId, varMap));
         this.collectBodyVariables(scopedBody, definedVars);
 
         for (const mItem of scopedBody) {
-          this.expandBodyItem(mItem, whereSubject, constructSubject, whereClauseLines, constructTriples, definedVars, paramsMap, ruleIdx, bindCounter, mixinCounter);
+          this.expandBodyItem(mItem, whereSubject, constructSubject, whereClauseLines, constructTriples, definedVars, childParamsMap, ruleIdx, bindCounter, mixinCounter);
         }
       }
       return;
@@ -434,6 +491,25 @@ export class Resolver {
       return {
         ...item,
         body: item.body.map(b => this.scopeBodyItem(b, mixinScopeId, varMap))
+      };
+    }
+    if (item.type === 'LangDirectiveNode') {
+      return {
+        ...item,
+        targetVar: item.targetVar ? this.scopeVar(item.targetVar, mixinScopeId, varMap) : undefined,
+        languages: typeof item.languages === 'object' && !Array.isArray(item.languages)
+          ? this.scopeExpression(item.languages, mixinScopeId, varMap)
+          : item.languages
+      };
+    }
+    if (item.type === 'FilterNode') {
+      let exprText = item.expressionText;
+      varMap.forEach((scoped, orig) => {
+        exprText = exprText.replace(new RegExp('\\' + orig + '\\b', 'g'), scoped);
+      });
+      return {
+        ...item,
+        expressionText: exprText
       };
     }
     return item;

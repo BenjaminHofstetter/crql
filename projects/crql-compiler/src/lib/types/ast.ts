@@ -12,6 +12,8 @@ export type TokenType =
   | 'AT_SELECT'
   | 'AT_BIND'
   | 'AT_WHERE'
+  | 'AT_LANG'
+  | 'AT_FILTER'
   | 'CUSTOM_SELECTOR_NAME' // e.g. :--estoniaCompanies
   | 'MIXIN_NAME'           // e.g. --name-and-address
   | 'IDENTIFIER'           // e.g. schema:name, ex:Company, concat
@@ -67,6 +69,8 @@ export type ASTNode =
   | ValuesBlockNode
   | SubSelectNode
   | BindNode
+  | LangDirectiveNode
+  | FilterNode
   | ExpressionNode
   | PageDirectiveNode;
 
@@ -76,6 +80,7 @@ export interface DocumentNode {
   customSelectors: CustomSelectorNode[];
   mixins: MixinNode[];
   rules: RuleBlockNode[];
+  langDirectives?: LangDirectiveNode[];
 }
 
 export interface PrefixDeclNode {
@@ -116,6 +121,17 @@ export interface SubSelectNode {
   projectedVars: string[]; // Variables projected in SELECT clause e.g. ["?focusNode", "?reviewCount"]
 }
 
+export interface LangDirectiveNode {
+  type: 'LangDirectiveNode';
+  targetVar?: string;                   // Optional e.g. "?countryOfOriginName"
+  languages: ExpressionNode | string[]; // e.g. ["de", "en", "fr", "it"] or ParamVarNode ($langs)
+}
+
+export interface FilterNode {
+  type: 'FilterNode';
+  expressionText: string; // e.g. "LANG(?countryOfOriginName) IN (\"de\", \"en\")"
+}
+
 export type BodyItemNode =
   | PropertyPatternNode
   | GetDirectiveNode
@@ -123,7 +139,9 @@ export type BodyItemNode =
   | FallbackBlockNode
   | ValuesBlockNode
   | SubSelectNode
-  | BindNode;
+  | BindNode
+  | LangDirectiveNode
+  | FilterNode;
 
 export interface MixinNode {
   type: 'MixinNode';
@@ -167,6 +185,7 @@ export interface PropertyPatternNode {
   constructSubject?: string; // Optional target subject in CONSTRUCT e.g. "?productType" or "?focusNode"
   value: ExpressionNode;
   isWhereOnly?: boolean;     // If true, omitted from CONSTRUCT template
+  langFilter?: ExpressionNode | string[]; // e.g. [lang="de,en"] or [lang=$langs]
 }
 
 export interface NestedTraversalNode {

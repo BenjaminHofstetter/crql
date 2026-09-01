@@ -298,6 +298,8 @@ export class Lexer {
         return { type: 'AT_BIND', value, line, column };
       case '@where':
         return { type: 'AT_WHERE', value, line, column };
+      case '@lang':
+        return { type: 'AT_LANG', value, line, column };
       default:
         return { type: 'IDENTIFIER', value, line, column };
     }
