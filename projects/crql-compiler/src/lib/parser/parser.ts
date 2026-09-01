@@ -393,7 +393,7 @@ export class Parser {
       return this.parseSubSelectBlock();
     }
 
-    // Check for nested traversal e.g. ex:hasManager > { ... } or ^ex:hasMember > { ... }
+    // Check for nested traversal e.g. ex:hasManager { ... }, ex:hasManager > { ... }, or ^ex:hasMember { ... }
     if (token.type === 'IDENTIFIER' || token.type === 'CARET') {
       let isInverse = false;
       if (token.type === 'CARET') {
@@ -401,9 +401,14 @@ export class Parser {
         this.advance();
       }
       const pathToken = this.peek();
-      if (pathToken.type === 'IDENTIFIER' && this.peekAhead(1).type === 'GT') {
+      if (
+        pathToken.type === 'IDENTIFIER' &&
+        (this.peekAhead(1).type === 'GT' || this.peekAhead(1).type === 'LBRACE')
+      ) {
         this.advance(); // consume pathToken
-        this.advance(); // consume '>'
+        if (this.check('GT')) {
+          this.advance(); // consume '>' if present
+        }
         this.consume('LBRACE', "Expected '{' for nested traversal block");
 
         const body: BodyItemNode[] = [];

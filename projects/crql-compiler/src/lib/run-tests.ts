@@ -270,4 +270,44 @@ if (!constructSection17.includes('?productType_mx1 ui:permissionType ?premission
 }
 console.log('✔ Test 17: explicit CONSTRUCT target subject attachment (=> ?productType ui:permissionType) passed');
 
-console.log('All 17 CRQL Compiler tests passed successfully!');
+const input18 = `
+  @prefix schema: <http://schema.org/>;
+  @prefix ui: <https://myapp>;
+  @prefix psm: <https://agriculture.ld.admin.ch/plant-protection/> ;
+
+  @custom-selector :--product {
+    BIND(<https://agriculture.ld.admin.ch/plant-protection/product/D-7463> AS ?focusNode)
+  }
+
+  @mixin --permissionType {
+    VALUES ?permissionType {
+      psm:ParallelImport
+      psm:SalePermission
+      psm:RegularProduct
+    }
+    @where a ?permissionType .
+    ?permissionType schema:name ?premissionName => ui:permissionType ; 
+  }
+
+  @mixin --category {
+    psm:productType {
+       schema:name ?premissionName => ui:category ; 
+    }
+  }
+
+  :--product {
+    schema:name ?name => ui:name ;
+    @get --permissionType; 
+    @get --category ;
+  }
+`;
+const sparql18 = compileCrql(input18);
+if (!sparql18.includes('?focusNode_1 psm:productType ?child_1_psm_productType .') ||
+    !sparql18.includes('?child_1_psm_productType schema:name ?premissionName_mx2 .') ||
+    !sparql18.includes('?focusNode_1 ui:category ?premissionName_mx2 .')) {
+  console.log('SPARQL18 Output:\n', sparql18);
+  throw new Error('Test 18 failed!');
+}
+console.log('✔ Test 18: nested block traversal (psm:productType { ... }) passed');
+
+console.log('All 18 CRQL Compiler tests passed successfully!');
