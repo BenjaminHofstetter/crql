@@ -446,4 +446,39 @@ if (!sparql24.includes('?permissionType_mx1 schema:name ?premissionName_mx1 .') 
 }
 console.log('✔ Test 24: @lang(?var, "de") targetVarExpr mixin scoping alignment passed');
 
-console.log('All 24 CRQL Compiler tests passed successfully!');
+const input25 = `
+  @prefix schema: <http://schema.org/>;
+  @prefix psm: <https://agriculture.ld.admin.ch/plant-protection/> ;
+  @prefix qudt: <http://qudt.org/schema/qudt/> ;
+
+  @mixin --substance {
+    psm:ingredient ?substance .
+
+    ?substance psm:share ?share .
+    ?share a ?shareType ;
+        schema:unitCode ?unit;
+        qudt:symbol ?symbol;
+        schema:value ?value ;
+    .
+
+    ?substance a ?substanceType ;
+        schema:name ?name ;
+        psm:iupacName ?iupacName ;
+    .
+  }
+
+  :--product {
+    @get --substance ;
+  }
+`;
+const sparql25 = compileCrql(input25);
+if (!sparql25.includes('?share_mx1 schema:unitCode ?unit_mx1 .') ||
+    !sparql25.includes('?share_mx1 qudt:symbol ?symbol_mx1 .') ||
+    !sparql25.includes('?substance_mx1 schema:name ?name_mx1 .') ||
+    !sparql25.includes('?substance_mx1 psm:iupacName ?iupacName_mx1 .')) {
+  console.log('SPARQL25 Output:\n', sparql25);
+  throw new Error('Test 25 failed!');
+}
+console.log('✔ Test 25: Turtle style predicate list semicolon chaining (?substance a ... ; schema:name ...) passed');
+
+console.log('All 25 CRQL Compiler tests passed successfully!');

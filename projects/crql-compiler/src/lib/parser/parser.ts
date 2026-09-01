@@ -182,18 +182,7 @@ export class Parser {
 
     this.consume('LBRACE', "Expected '{' to start mixin block");
 
-    const body: BodyItemNode[] = [];
-    while (!this.check('RBRACE') && !this.isAtEnd()) {
-      const startPos = this.pos;
-      const item = this.parseRuleBodyItem();
-      if (item) body.push(item);
-      if (this.check('SEMICOLON')) {
-        this.advance();
-      }
-      if (this.pos === startPos) {
-        this.advance();
-      }
-    }
+    const body = this.parseBodyBlockItems();
 
     this.consume('RBRACE', "Expected '}' at end of mixin block");
 
@@ -203,6 +192,54 @@ export class Parser {
       params,
       body
     };
+  }
+
+  private parseBodyBlockItems(pageDirectives?: PageDirectiveNode): BodyItemNode[] {
+    const body: BodyItemNode[] = [];
+    let activeSubject: string | undefined = undefined;
+
+    while (!this.check('RBRACE') && !this.isAtEnd()) {
+      if (this.check('DOT')) {
+        this.advance();
+        activeSubject = undefined;
+        continue;
+      }
+
+      if (this.check('AT_LIMIT') || this.check('AT_OFFSET') || this.check('AT_ORDER_BY')) {
+        if (pageDirectives) {
+          this.parsePageDirectiveItem(pageDirectives);
+        } else {
+          this.advance();
+        }
+        if (this.check('SEMICOLON')) this.advance();
+        continue;
+      }
+
+      const startPos = this.pos;
+      const item = this.parseRuleBodyItem(activeSubject);
+
+      if (item && item.type !== 'FallbackBlockNode') {
+        body.push(item);
+        if (item.type === 'PropertyPatternNode') {
+          if (item.subject) {
+            activeSubject = item.subject;
+          }
+        }
+      }
+
+      if (this.check('DOT')) {
+        this.advance();
+        activeSubject = undefined;
+      } else if (this.check('SEMICOLON')) {
+        this.advance();
+      }
+
+      if (this.pos === startPos) {
+        this.advance();
+      }
+    }
+
+    return body;
   }
 
   private parseParameterDefs(): ParameterDef[] {
@@ -265,37 +302,18 @@ export class Parser {
 
     this.consume('LBRACE', "Expected '{' to start rule block");
 
-    const body: BodyItemNode[] = [];
-    let pageDirectives: PageDirectiveNode | undefined = undefined;
-
-    while (!this.check('RBRACE') && !this.isAtEnd()) {
-      const startPos = this.pos;
-      const token = this.peek();
-
-      if (token.type === 'AT_LIMIT' || token.type === 'AT_OFFSET' || token.type === 'AT_ORDER_BY') {
-        if (!pageDirectives) pageDirectives = { type: 'PageDirectiveNode' };
-        this.parsePageDirectiveItem(pageDirectives);
-      } else {
-        const item = this.parseRuleBodyItem();
-        if (item) body.push(item);
-      }
-
-      if (this.check('SEMICOLON')) {
-        this.advance();
-      }
-
-      if (this.pos === startPos) {
-        this.advance();
-      }
-    }
+    const pageDirectives: PageDirectiveNode = { type: 'PageDirectiveNode' };
+    const body = this.parseBodyBlockItems(pageDirectives);
 
     this.consume('RBRACE', "Expected '}' at end of rule block");
+
+    const hasDirectives = pageDirectives.limit !== undefined || pageDirectives.offset !== undefined || pageDirectives.orderBy !== undefined;
 
     return {
       type: 'RuleBlockNode',
       selectors,
       body,
-      pageDirectives
+      pageDirectives: hasDirectives ? pageDirectives : undefined
     };
   }
 
@@ -377,7 +395,7 @@ export class Parser {
     };
   }
 
-  private parseRuleBodyItem(): BodyItemNode | null {
+  private parseRuleBodyItem(inheritedSubject?: string): BodyItemNode | null {
     const token = this.peek();
 
     if (token.type === 'AT_GET') {
@@ -430,16 +448,8 @@ export class Parser {
         }
         this.consume('LBRACE', "Expected '{' for nested traversal block");
 
-        const body: BodyItemNode[] = [];
-        while (!this.check('RBRACE') && !this.isAtEnd()) {
-          const startPos = this.pos;
-          const item = this.parseRuleBodyItem();
-          if (item && item.type !== 'FallbackBlockNode') {
-            body.push(item);
-          }
-          if (this.check('SEMICOLON')) this.advance();
-          if (this.pos === startPos) this.advance();
-        }
+        const body = this.parseBodyBlockItems();
+
         this.consume('RBRACE', "Expected '}'");
 
         return {
@@ -527,7 +537,7 @@ export class Parser {
 
       return {
         type: 'PropertyPatternNode',
-        subject: customSubject,
+        subject: customSubject || inheritedSubject,
         predicate,
         targetPredicate,
         constructSubject,
