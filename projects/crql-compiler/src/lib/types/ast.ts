@@ -11,6 +11,7 @@ export type TokenType =
   | 'AT_VALUES'
   | 'AT_SELECT'
   | 'AT_BIND'
+  | 'AT_WHERE'
   | 'CUSTOM_SELECTOR_NAME' // e.g. :--estoniaCompanies
   | 'MIXIN_NAME'           // e.g. --name-and-address
   | 'IDENTIFIER'           // e.g. schema:name, ex:Company, concat
@@ -160,10 +161,12 @@ export interface GetDirectiveNode {
 
 export interface PropertyPatternNode {
   type: 'PropertyPatternNode';
-  subject?: string; // Optional custom subject e.g. "?productType" or "?focusNode"
-  predicate: string; // e.g. "schema:name"
-  targetPredicate?: string; // for mapping e.g. schema:name => ui:title
+  subject?: string;          // Optional custom subject e.g. "?productType" or "?focusNode"
+  predicate: string;         // e.g. "schema:name"
+  targetPredicate?: string;  // for mapping e.g. schema:name => ui:title
+  constructSubject?: string; // Optional target subject in CONSTRUCT e.g. "?productType" or "?focusNode"
   value: ExpressionNode;
+  isWhereOnly?: boolean;     // If true, omitted from CONSTRUCT template
 }
 
 export interface NestedTraversalNode {

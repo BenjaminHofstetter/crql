@@ -122,6 +122,7 @@ export class Resolver {
 
         // 2. Expand rule body items and validate variable scoping
         const bindCounter = { count: 1 };
+        const mixinCounter = { count: 1 };
         for (const item of rule.body) {
           this.expandBodyItem(
             item,
@@ -132,7 +133,8 @@ export class Resolver {
             definedVars,
             paramsMap,
             ruleCounter,
-            bindCounter
+            bindCounter,
+            mixinCounter
           );
         }
 
@@ -218,7 +220,8 @@ export class Resolver {
     definedVars: Set<string>,
     paramsMap?: Record<string, unknown>,
     ruleIdx = 1,
-    bindCounter = { count: 1 }
+    bindCounter = { count: 1 },
+    mixinCounter = { count: 1 }
   ) {
     const bindItem = item as BindNode;
     if (bindItem.type === 'BindNode') {
@@ -252,10 +255,17 @@ export class Resolver {
         itemWhereSubject = propertyItem.subject === '?focusNode' ? whereSubject : propertyItem.subject;
       }
 
+      let itemConstructSubject = constructSubject;
+      if (propertyItem.constructSubject) {
+        itemConstructSubject = propertyItem.constructSubject === '?focusNode' ? constructSubject : propertyItem.constructSubject;
+      }
+
       if (valExpr.type === 'VariableNode') {
         const varName = valExpr.name;
         whereClauseLines.push(`${itemWhereSubject} ${propertyItem.predicate} ${varName} .`);
-        constructTriples.push({ subject: constructSubject, predicate: targetPred, object: varName });
+        if (!propertyItem.isWhereOnly) {
+          constructTriples.push({ subject: itemConstructSubject, predicate: targetPred, object: varName });
+        }
       } else if (valExpr.type === 'FunctionCallNode') {
         const boundVar = `?auto_bound_${ruleIdx}_${bindCounter.count++}`;
 
@@ -273,11 +283,15 @@ export class Resolver {
 
         const fnExprString = this.formatFunctionCall(valExpr, paramsMap);
         whereClauseLines.push(`BIND(${fnExprString} AS ${boundVar})`);
-        constructTriples.push({ subject: constructSubject, predicate: targetPred, object: boundVar });
+        if (!propertyItem.isWhereOnly) {
+          constructTriples.push({ subject: itemConstructSubject, predicate: targetPred, object: boundVar });
+        }
       } else {
         const objVal = this.expressionToString(valExpr, paramsMap);
         whereClauseLines.push(`${itemWhereSubject} ${propertyItem.predicate} ${objVal} .`);
-        constructTriples.push({ subject: constructSubject, predicate: targetPred, object: objVal });
+        if (!propertyItem.isWhereOnly) {
+          constructTriples.push({ subject: itemConstructSubject, predicate: targetPred, object: objVal });
+        }
       }
       return;
     }
@@ -286,8 +300,14 @@ export class Resolver {
     if (getDirective.type === 'GetDirectiveNode') {
       if (this.mixins.has(getDirective.mixinName)) {
         const mixinDef = this.mixins.get(getDirective.mixinName)!;
-        for (const mItem of mixinDef.body) {
-          this.expandBodyItem(mItem, whereSubject, constructSubject, whereClauseLines, constructTriples, definedVars, paramsMap, ruleIdx, bindCounter);
+        const mixinScopeId = `mx${mixinCounter.count++}`;
+        const varMap = new Map<string, string>();
+
+        const scopedBody = mixinDef.body.map(bItem => this.scopeBodyItem(bItem, mixinScopeId, varMap));
+        this.collectBodyVariables(scopedBody, definedVars);
+
+        for (const mItem of scopedBody) {
+          this.expandBodyItem(mItem, whereSubject, constructSubject, whereClauseLines, constructTriples, definedVars, paramsMap, ruleIdx, bindCounter, mixinCounter);
         }
       }
       return;
@@ -371,6 +391,65 @@ export class Resolver {
       default:
         return '';
     }
+  }
+
+  private scopeVar(varName: string, mixinScopeId: string, varMap: Map<string, string>): string {
+    if (!varName.startsWith('?') || varName === '?focusNode') return varName;
+    if (!varMap.has(varName)) {
+      varMap.set(varName, `${varName}_${mixinScopeId}`);
+    }
+    return varMap.get(varName)!;
+  }
+
+  private scopeBodyItem(item: BodyItemNode, mixinScopeId: string, varMap: Map<string, string>): BodyItemNode {
+    if (item.type === 'PropertyPatternNode') {
+      return {
+        ...item,
+        subject: item.subject ? this.scopeVar(item.subject, mixinScopeId, varMap) : undefined,
+        constructSubject: item.constructSubject ? this.scopeVar(item.constructSubject, mixinScopeId, varMap) : undefined,
+        value: this.scopeExpression(item.value, mixinScopeId, varMap)
+      };
+    }
+    if (item.type === 'ValuesBlockNode') {
+      const scopedVars = item.variables.map(v => this.scopeVar(v, mixinScopeId, varMap));
+      let valuesText = item.valuesText;
+      for (let i = 0; i < item.variables.length; i++) {
+        const origVar = item.variables[i];
+        const newVar = scopedVars[i];
+        valuesText = valuesText.replace(new RegExp('\\' + origVar + '\\b', 'g'), newVar);
+      }
+      return {
+        ...item,
+        variables: scopedVars,
+        valuesText
+      };
+    }
+    if (item.type === 'BindNode') {
+      return {
+        ...item,
+        variable: this.scopeVar(item.variable, mixinScopeId, varMap)
+      };
+    }
+    if (item.type === 'NestedTraversalNode') {
+      return {
+        ...item,
+        body: item.body.map(b => this.scopeBodyItem(b, mixinScopeId, varMap))
+      };
+    }
+    return item;
+  }
+
+  private scopeExpression(expr: ExpressionNode, mixinScopeId: string, varMap: Map<string, string>): ExpressionNode {
+    if (expr.type === 'VariableNode') {
+      return { type: 'VariableNode', name: this.scopeVar(expr.name, mixinScopeId, varMap) };
+    }
+    if (expr.type === 'FunctionCallNode') {
+      return {
+        ...expr,
+        args: expr.args.map(a => this.scopeExpression(a, mixinScopeId, varMap))
+      };
+    }
+    return expr;
   }
 
   private ensureDefaultPrefix(prefixes: Array<{ prefix: string; iri: string }>, prefix: string, iri: string) {

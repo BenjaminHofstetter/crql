@@ -296,6 +296,8 @@ export class Lexer {
         return { type: 'AT_SELECT', value, line, column };
       case '@bind':
         return { type: 'AT_BIND', value, line, column };
+      case '@where':
+        return { type: 'AT_WHERE', value, line, column };
       default:
         return { type: 'IDENTIFIER', value, line, column };
     }

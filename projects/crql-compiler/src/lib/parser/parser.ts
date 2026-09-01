@@ -427,7 +427,13 @@ export class Parser {
       }
     }
 
-    // Standard Property Pattern: [subjectVar] predicate [varOrExpr] [=> targetPredicate] [varOrExpr]
+    let isWhereOnly = false;
+    if (this.check('AT_WHERE')) {
+      this.advance(); // consume '@where'
+      isWhereOnly = true;
+    }
+
+    // Standard Property Pattern: [subjectVar] predicate [varOrExpr] [=> [?constructSubject] targetPredicate] [varOrExpr]
     let customSubject: string | undefined = undefined;
     if (this.check('VARIABLE') && this.peekAhead(1).type === 'IDENTIFIER') {
       customSubject = this.advance().value;
@@ -438,6 +444,7 @@ export class Parser {
 
       let value: ExpressionNode | undefined = undefined;
       let targetPredicate: string | undefined = undefined;
+      let constructSubject: string | undefined = undefined;
 
       // 1. Check if variable or expression comes before => (e.g. schema:name ?name => ui:name)
       if (
@@ -451,9 +458,12 @@ export class Parser {
         value = this.parseExpression();
       }
 
-      // 2. Check for => targetPredicate mapping
+      // 2. Check for => [?constructSubject] targetPredicate mapping
       if (this.check('ARROW_RIGHT')) {
         this.advance(); // consume '=>'
+        if (this.check('VARIABLE')) {
+          constructSubject = this.advance().value;
+        }
         targetPredicate = this.consume('IDENTIFIER', 'Expected target predicate after =>').value;
       }
 
@@ -474,7 +484,9 @@ export class Parser {
         subject: customSubject,
         predicate,
         targetPredicate,
-        value
+        constructSubject,
+        value,
+        isWhereOnly
       };
     }
 

@@ -112,7 +112,8 @@ const input10 = `
   }
 `;
 const sparql10 = compileCrql(input10);
-if (!sparql10.includes('?focusNode_1 ui:icon ?icon .') || !sparql10.includes('ex:iconForClass ?child_1_a .')) {
+if (!sparql10.includes('?focusNode_1 ui:icon ?icon_mx1 .') || !sparql10.includes('ex:iconForClass ?child_1_a .')) {
+  console.log('SPARQL10 Output:\n', sparql10);
   throw new Error('Test 10 failed!');
 }
 console.log('✔ Test 10: nested traversal inside @mixin & @get passed');
@@ -131,7 +132,8 @@ const input11 = `
   }
 `;
 const sparql11 = compileCrql(input11);
-if (!sparql11.includes('VALUES ?productType { psm:ParallelImport psm:SalePermission psm:RegularProduct }') || !sparql11.includes('?focusNode_1 appPrefix:permissionType ?productType .')) {
+if (!sparql11.includes('VALUES ?productType_mx1 { psm:ParallelImport psm:SalePermission psm:RegularProduct }') || !sparql11.includes('?focusNode_1 appPrefix:permissionType ?productType_mx1 .')) {
+  console.log('SPARQL11 Output:\n', sparql11);
   throw new Error('Test 11 failed!');
 }
 console.log('✔ Test 11: VALUES block inside @mixin passed');
@@ -151,7 +153,8 @@ const input12 = `
   }
 `;
 const sparql12 = compileCrql(input12);
-if (!sparql12.includes('SELECT ?focusNode') || !sparql12.includes('?focusNode_1 ex:reviewCount ?reviewCount .')) {
+if (!sparql12.includes('SELECT ?focusNode') || !sparql12.includes('?focusNode_1 ex:reviewCount ?reviewCount_mx1 .')) {
+  console.log('SPARQL12 Output:\n', sparql12);
   throw new Error('Test 12 failed!');
 }
 console.log('✔ Test 12: Sub-SELECT query inside @mixin passed');
@@ -216,11 +219,55 @@ const input15 = `
   }
 `;
 const sparql15 = compileCrql(input15);
-if (!sparql15.includes('?productType schema:name ?premissionName .') ||
-    !sparql15.includes('?focusNode_1 ui:permissionType ?premissionName .')) {
+if (!sparql15.includes('?productType_mx1 schema:name ?premissionName_mx1 .') ||
+    !sparql15.includes('?focusNode_1 ui:permissionType ?premissionName_mx1 .')) {
   console.log('SPARQL15 Output:\n', sparql15);
   throw new Error('Test 15 failed!');
 }
-console.log('✔ Test 15: explicit subject variable (?productType schema:name ...) in WHERE clause passed');
+console.log('✔ Test 15: explicit subject variable & automatic mixin variable scoping passed');
 
-console.log('All 15 CRQL Compiler tests passed successfully!');
+const input16 = `
+  @mixin --permissionType {
+    VALUES ?productType {
+      psm:ParallelImport
+      psm:SalePermission
+      psm:RegularProduct
+    }
+    @where ?focusNode a ?productType ;
+    ?productType schema:name ?premissionName => ui:permissionType ;
+  }
+  :--product {
+    @get --permissionType ;
+  }
+`;
+const sparql16 = compileCrql(input16);
+const constructSection16 = sparql16.split('CONSTRUCT {')[1].split('}')[0];
+if (!sparql16.includes('?focusNode_1 a ?productType_mx1 .') || constructSection16.includes('a ?productType')) {
+  console.log('SPARQL16 Output:\n', sparql16);
+  throw new Error('Test 16 failed!');
+}
+console.log('✔ Test 16: @where CONSTRUCT suppression passed');
+
+const input17 = `
+  @mixin --permissionType {
+    VALUES ?productType {
+      psm:ParallelImport
+      psm:SalePermission
+      psm:RegularProduct
+    }
+    @where ?focusNode a ?productType ;
+    ?productType schema:name ?premissionName => ?productType ui:permissionType ;
+  }
+  :--product {
+    @get --permissionType ;
+  }
+`;
+const sparql17 = compileCrql(input17);
+const constructSection17 = sparql17.split('CONSTRUCT {')[1].split('}')[0];
+if (!constructSection17.includes('?productType_mx1 ui:permissionType ?premissionName_mx1 .')) {
+  console.log('SPARQL17 Output:\n', sparql17);
+  throw new Error('Test 17 failed!');
+}
+console.log('✔ Test 17: explicit CONSTRUCT target subject attachment (=> ?productType ui:permissionType) passed');
+
+console.log('All 17 CRQL Compiler tests passed successfully!');

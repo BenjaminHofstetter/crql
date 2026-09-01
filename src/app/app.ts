@@ -205,42 +205,31 @@ export class App {
     },
     {
       id: 'values-subselect',
-      title: '8. SPARQL VALUES & Sub-SELECTs in Mixins',
-      description: 'Constrain variable values and execute sub-queries directly inside mixins and rule blocks.',
+      title: '8. SPARQL VALUES, @where & Mixin Scoping',
+      description: 'Constrain variable values, use @where to suppress CONSTRUCT triples, and attach mapped predicates.',
       code: `@prefix ex: <http://example.org/>;
-@prefix psm: <http://example.org/psm/>;
-@prefix appPrefix: <http://example.org/app/>;
-@prefix ui: <http://example.org/ui/>;
+@prefix psm: <https://agriculture.ld.admin.ch/plant-protection/>;
+@prefix schema: <http://schema.org/>;
+@prefix ui: <https://myapp>;
 
-/* Reusable Mixin with SPARQL VALUES constraint */
+/* Reusable Mixin with VALUES constraint, @where suppression, & custom target subject */
 @mixin --permissionType {
   VALUES ?productType {
     psm:ParallelImport
     psm:SalePermission
     psm:RegularProduct
   }
-  a => appPrefix:permissionType ?productType ;
+  @where ?focusNode a ?productType ;
+  ?productType schema:name ?premissionName => ?productType ui:permissionType ;
 }
 
-/* Reusable Mixin with SPARQL Sub-SELECT Aggregation */
-@mixin --reviewStats {
-  {
-    SELECT ?focusNode (COUNT(?review) AS ?reviewCount) WHERE {
-      ?focusNode ex:hasReview ?review .
-    }
-    GROUP BY ?focusNode
-  }
-  ex:reviewCount => ui:totalReviews ?reviewCount ;
+@custom-selector :--product {
+  BIND(<https://agriculture.ld.admin.ch/plant-protection/product/D-7463> AS ?focusNode)
 }
 
-@custom-selector :--catalogProducts {
-  ?focusNode a ex:Product .
-}
-
-:--catalogProducts {
-  ex:name ?productName ;
+:--product {
+  schema:name ?name => ui:name ;
   @get --permissionType ;
-  @get --reviewStats ;
 }`
     },
     {
