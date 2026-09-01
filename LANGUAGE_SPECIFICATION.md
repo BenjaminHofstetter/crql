@@ -301,15 +301,15 @@ grammar CRQL;
 // --- PARSER RULES ---
 
 document
-    : prefixDecl* (customSelectorDef | mixinDef | ruleBlock)* EOF
+    : prefixDecl* (selectorDefinition | mixinDef | ruleBlock)* EOF
     ;
 
 prefixDecl
     : AT_PREFIX (IDENTIFIER COLON | COLON) IRI_REF SEMI
     ;
 
-customSelectorDef
-    : AT_CUSTOM_SELECTOR selectorName LBRACE selectorBody RBRACE
+selectorDefinition
+    : (AT_CUSTOM_SELECTOR | AT_SELECTOR) selectorName LBRACE selectorBody RBRACE
     ;
 
 selectorName
