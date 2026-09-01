@@ -210,7 +210,12 @@ export class Parser {
     const params: ParameterDef[] = [];
 
     while (!this.check('RPAREN') && !this.isAtEnd()) {
-      const paramToken = this.consume('PARAM_VAR', 'Expected parameter variable starting with $');
+      let paramToken: Token;
+      if (this.check('PARAM_VAR') || this.check('VARIABLE')) {
+        paramToken = this.advance();
+      } else {
+        paramToken = this.consume('PARAM_VAR', 'Expected parameter variable starting with $ or ?');
+      }
       let defaultValue: ExpressionNode | undefined = undefined;
 
       if (this.check('EQUALS')) {
@@ -666,19 +671,20 @@ export class Parser {
 
   private parseLangDirective(): LangDirectiveNode {
     this.consume('AT_LANG', "Expected '@lang'");
-    let targetVar: string | undefined = undefined;
+    let targetVarExpr: ExpressionNode | undefined = undefined;
 
     if (this.check('LPAREN')) {
       this.advance();
-      if (this.check('VARIABLE')) {
-        targetVar = this.advance().value;
+      if (this.check('VARIABLE') || this.check('PARAM_VAR')) {
+        targetVarExpr = this.parseExpression();
         if (this.check('COMMA')) this.advance();
       }
       const expr = this.parseExpression();
       this.consume('RPAREN', "Expected ')' after @lang");
       return {
         type: 'LangDirectiveNode',
-        targetVar,
+        targetVarExpr,
+        targetVar: targetVarExpr?.type === 'VariableNode' ? targetVarExpr.name : undefined,
         languages: expr
       };
     } else {

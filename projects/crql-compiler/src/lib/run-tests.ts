@@ -369,4 +369,26 @@ if (!sparql21.includes('FILTER(LANG(?countryName_mx1) IN ("de", "en"))')) {
 }
 console.log('✔ Test 21: native SPARQL FILTER(...) statement inside mixin passed');
 
-console.log('All 21 CRQL Compiler tests passed successfully!');
+const input22 = `
+  @mixin --langFilter(?var, $langs = "de,en,fr,it") {
+    @lang(?var, $langs) ;
+  }
+
+  :--product {
+    schema:name ?productName => ui:name ;
+    schema:countryOfOrigin {
+      schema:name ?countryName => ui:country ;
+      @get --langFilter(?countryName, "de,fr") ;
+    }
+    @get --langFilter(?productName, "de,en,fr,it") ;
+  }
+`;
+const sparql22 = compileCrql(input22);
+if (!sparql22.includes('FILTER(LANG(?countryName) IN ("de", "fr"))') ||
+    !sparql22.includes('FILTER(LANG(?productName) IN ("de", "en", "fr", "it"))')) {
+  console.log('SPARQL22 Output:\n', sparql22);
+  throw new Error('Test 22 failed!');
+}
+console.log('✔ Test 22: standalone reusable language filter mixin @mixin --langFilter(?var, $langs) passed');
+
+console.log('All 22 CRQL Compiler tests passed successfully!');

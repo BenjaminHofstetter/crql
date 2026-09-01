@@ -248,7 +248,29 @@ export class Resolver {
 
     const langItem = item as LangDirectiveNode;
     if (langItem.type === 'LangDirectiveNode') {
-      const targetVar = langItem.targetVar || Array.from(definedVars).pop() || '?name';
+      let targetVarStr = '?name';
+      if (langItem.targetVarExpr) {
+        targetVarStr = this.expressionToString(langItem.targetVarExpr, paramsMap);
+      } else if (langItem.targetVar) {
+        targetVarStr = langItem.targetVar;
+      } else {
+        targetVarStr = Array.from(definedVars).pop() || '?name';
+      }
+
+      if (paramsMap) {
+        const rawKey = targetVarStr.replace(/^\$|^\?/, '');
+        if (rawKey in paramsMap) {
+          const mapped = String(paramsMap[rawKey]);
+          targetVarStr = mapped.startsWith('?') ? mapped : `?${mapped}`;
+        } else if (`$${rawKey}` in paramsMap) {
+          const mapped = String(paramsMap[`$${rawKey}`]);
+          targetVarStr = mapped.startsWith('?') ? mapped : `?${mapped}`;
+        } else if (`?${rawKey}` in paramsMap) {
+          const mapped = String(paramsMap[`?${rawKey}`]);
+          targetVarStr = mapped.startsWith('?') ? mapped : `?${mapped}`;
+        }
+      }
+
       let langExpr = '';
       if (typeof langItem.languages === 'object' && !Array.isArray(langItem.languages)) {
         langExpr = this.expressionToString(langItem.languages, paramsMap);
@@ -258,13 +280,24 @@ export class Resolver {
         langExpr = String(langItem.languages);
       }
       const langs = langExpr.replace(/^"|"$/g, '').split(',').map(s => `"${s.trim()}"`);
-      whereClauseLines.push(`FILTER(LANG(${targetVar}) IN (${langs.join(', ')}))`);
+      whereClauseLines.push(`FILTER(LANG(${targetVarStr}) IN (${langs.join(', ')}))`);
       return;
     }
 
     const filterItem = item as FilterNode;
     if (filterItem.type === 'FilterNode') {
-      whereClauseLines.push(`FILTER(${filterItem.expressionText})`);
+      let exprText = filterItem.expressionText;
+      if (paramsMap) {
+        Object.entries(paramsMap).forEach(([k, v]) => {
+          const rawK = k.replace(/^\$|^\?/, '');
+          const valStr = typeof v === 'string' && (v.startsWith('?') || v.startsWith('http') || v.includes(':'))
+            ? String(v)
+            : `"${v}"`;
+          exprText = exprText.replace(new RegExp('\\$' + rawK + '\\b', 'g'), valStr);
+          exprText = exprText.replace(new RegExp('\\?' + rawK + '\\b', 'g'), valStr);
+        });
+      }
+      whereClauseLines.push(`FILTER(${exprText})`);
       return;
     }
 
@@ -348,14 +381,21 @@ export class Resolver {
 
             if (getDirective.args && i < getDirective.args.length) {
               const argExpr = getDirective.args[i];
-              paramVal = this.expressionToString(argExpr, paramsMap).replace(/^"|"$/g, '');
+              if (argExpr.type === 'VariableNode') {
+                paramVal = argExpr.name;
+              } else {
+                paramVal = this.expressionToString(argExpr, paramsMap).replace(/^"|"$/g, '');
+              }
             } else if (paramDef.defaultValue) {
               paramVal = this.expressionToString(paramDef.defaultValue, paramsMap).replace(/^"|"$/g, '');
             }
 
             if (paramVal !== undefined) {
-              childParamsMap[paramKey] = paramVal;
-              childParamsMap[`$${paramKey}`] = paramVal;
+              const rawKey = paramDef.name.replace(/^\$|^\?/, '');
+              childParamsMap[rawKey] = paramVal;
+              childParamsMap[`$${rawKey}`] = paramVal;
+              childParamsMap[`?${rawKey}`] = paramVal;
+              childParamsMap[paramDef.name] = paramVal;
             }
           }
         }

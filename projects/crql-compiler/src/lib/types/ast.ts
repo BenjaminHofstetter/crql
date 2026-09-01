@@ -124,6 +124,7 @@ export interface SubSelectNode {
 export interface LangDirectiveNode {
   type: 'LangDirectiveNode';
   targetVar?: string;                   // Optional e.g. "?countryOfOriginName"
+  targetVarExpr?: ExpressionNode;       // Optional e.g. VariableNode or ParamVarNode
   languages: ExpressionNode | string[]; // e.g. ["de", "en", "fr", "it"] or ParamVarNode ($langs)
 }
 
