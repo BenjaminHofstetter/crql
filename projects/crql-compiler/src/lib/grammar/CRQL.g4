@@ -13,7 +13,7 @@ document
     ;
 
 prefixDecl
-    : AT_PREFIX PREFIX_NAME IRI_REF SEMI
+    : AT_PREFIX (IDENTIFIER COLON | COLON) IRI_REF SEMI
     ;
 
 customSelectorDef
@@ -116,7 +116,7 @@ filterStmt
     ;
 
 filterExpr
-    : ~[)]+
+    : (~RPAREN)+
     ;
 
 valuesBlock
@@ -124,7 +124,7 @@ valuesBlock
     ;
 
 valuesContent
-    : ~[}]+
+    : (~RBRACE)+
     ;
 
 bindStmt
@@ -132,7 +132,7 @@ bindStmt
     ;
 
 subSelectBlock
-    : (AT_SELECT | SELECT | LBRACE SELECT) ~[}]+ RBRACE
+    : (AT_SELECT | SELECT | LBRACE SELECT) (~RBRACE)+ RBRACE
     ;
 
 pageDirective
@@ -146,8 +146,7 @@ triplePattern
     ;
 
 pathExpr
-    : IDENTIFIER (SLASH IDENTIFIER | CARET IDENTIFIER | ASTERISK | PLUS)*
-    | CURIE
+    : (IDENTIFIER | CURIE) (SLASH IDENTIFIER | CARET IDENTIFIER | ASTERISK | PLUS)*
     ;
 
 objectExpr
@@ -197,7 +196,6 @@ LANG_KEY           : [Ll][Aa][Nn][Gg] ;
 ASC                : [Aa][Ss][Cc] ;
 DESC               : [Dd][Ee][Ss][Cc] ;
 
-PREFIX_NAME        : [a-zA-Z0-9_-]+ ':' ;
 CUSTOM_SELECTOR_NAME : ':--' [a-zA-Z0-9_-]+ ;
 MIXIN_NAME           : '--' [a-zA-Z0-9_-]+ ;
 
