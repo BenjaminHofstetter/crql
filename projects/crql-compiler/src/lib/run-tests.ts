@@ -418,4 +418,32 @@ if (!sparql23.includes('?child_1_schema_countryOfOrigin schema:name ?countryName
 }
 console.log('✔ Test 23: mixin-in-mixin variable scoping alignment (?countryName_mx1) passed');
 
-console.log('All 23 CRQL Compiler tests passed successfully!');
+const input24 = `
+  @prefix schema: <http://schema.org/>;
+  @prefix ui: <https://myapp>;
+  @prefix psm: <https://agriculture.ld.admin.ch/plant-protection/> ;
+
+  @mixin --permissionType {
+    VALUES ?permissionType {
+      psm:ParallelImport
+      psm:SalePermission
+      psm:RegularProduct
+    }
+    @where ?focusNode a ?permissionType .
+    ?permissionType schema:name ?premissionName => ui:permissionType ; 
+    @lang(?premissionName, "de")
+  }
+
+  :--product {
+    @get --permissionType ;
+  }
+`;
+const sparql24 = compileCrql(input24);
+if (!sparql24.includes('?permissionType_mx1 schema:name ?premissionName_mx1 .') ||
+    !sparql24.includes('FILTER(LANG(?premissionName_mx1) IN ("de"))')) {
+  console.log('SPARQL24 Output:\n', sparql24);
+  throw new Error('Test 24 failed!');
+}
+console.log('✔ Test 24: @lang(?var, "de") targetVarExpr mixin scoping alignment passed');
+
+console.log('All 24 CRQL Compiler tests passed successfully!');

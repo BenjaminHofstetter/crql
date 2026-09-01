@@ -400,7 +400,8 @@ export class Resolver {
           }
         }
 
-        const scopedBody = mixinDef.body.map(bItem => this.scopeBodyItem(bItem, mixinScopeId, varMap));
+        const paramNames = new Set(mixinDef.params ? mixinDef.params.map(p => p.name) : []);
+        const scopedBody = mixinDef.body.map(bItem => this.scopeBodyItem(bItem, mixinScopeId, varMap, paramNames));
         this.collectBodyVariables(scopedBody, definedVars);
 
         for (const mItem of scopedBody) {
@@ -490,25 +491,28 @@ export class Resolver {
     }
   }
 
-  private scopeVar(varName: string, mixinScopeId: string, varMap: Map<string, string>): string {
+  private scopeVar(varName: string, mixinScopeId: string, varMap: Map<string, string>, paramNames?: Set<string>): string {
     if (!varName.startsWith('?') || varName === '?focusNode') return varName;
+    if (paramNames && (paramNames.has(varName) || paramNames.has(varName.replace(/^\?/, '$')) || paramNames.has(varName.replace(/^\?/, '')))) {
+      return varName;
+    }
     if (!varMap.has(varName)) {
       varMap.set(varName, `${varName}_${mixinScopeId}`);
     }
     return varMap.get(varName)!;
   }
 
-  private scopeBodyItem(item: BodyItemNode, mixinScopeId: string, varMap: Map<string, string>): BodyItemNode {
+  private scopeBodyItem(item: BodyItemNode, mixinScopeId: string, varMap: Map<string, string>, paramNames?: Set<string>): BodyItemNode {
     if (item.type === 'PropertyPatternNode') {
       return {
         ...item,
-        subject: item.subject ? this.scopeVar(item.subject, mixinScopeId, varMap) : undefined,
-        constructSubject: item.constructSubject ? this.scopeVar(item.constructSubject, mixinScopeId, varMap) : undefined,
-        value: this.scopeExpression(item.value, mixinScopeId, varMap)
+        subject: item.subject ? this.scopeVar(item.subject, mixinScopeId, varMap, paramNames) : undefined,
+        constructSubject: item.constructSubject ? this.scopeVar(item.constructSubject, mixinScopeId, varMap, paramNames) : undefined,
+        value: this.scopeExpression(item.value, mixinScopeId, varMap, paramNames)
       };
     }
     if (item.type === 'ValuesBlockNode') {
-      const scopedVars = item.variables.map(v => this.scopeVar(v, mixinScopeId, varMap));
+      const scopedVars = item.variables.map(v => this.scopeVar(v, mixinScopeId, varMap, paramNames));
       let valuesText = item.valuesText;
       for (let i = 0; i < item.variables.length; i++) {
         const origVar = item.variables[i];
@@ -524,27 +528,28 @@ export class Resolver {
     if (item.type === 'BindNode') {
       return {
         ...item,
-        variable: this.scopeVar(item.variable, mixinScopeId, varMap)
+        variable: this.scopeVar(item.variable, mixinScopeId, varMap, paramNames)
       };
     }
     if (item.type === 'GetDirectiveNode') {
       return {
         ...item,
-        args: item.args ? item.args.map(arg => this.scopeExpression(arg, mixinScopeId, varMap)) : []
+        args: item.args ? item.args.map(arg => this.scopeExpression(arg, mixinScopeId, varMap, paramNames)) : []
       };
     }
     if (item.type === 'NestedTraversalNode') {
       return {
         ...item,
-        body: item.body.map(b => this.scopeBodyItem(b, mixinScopeId, varMap))
+        body: item.body.map(b => this.scopeBodyItem(b, mixinScopeId, varMap, paramNames))
       };
     }
     if (item.type === 'LangDirectiveNode') {
       return {
         ...item,
-        targetVar: item.targetVar ? this.scopeVar(item.targetVar, mixinScopeId, varMap) : undefined,
+        targetVar: item.targetVar ? this.scopeVar(item.targetVar, mixinScopeId, varMap, paramNames) : undefined,
+        targetVarExpr: item.targetVarExpr ? this.scopeExpression(item.targetVarExpr, mixinScopeId, varMap, paramNames) : undefined,
         languages: typeof item.languages === 'object' && !Array.isArray(item.languages)
-          ? this.scopeExpression(item.languages, mixinScopeId, varMap)
+          ? this.scopeExpression(item.languages, mixinScopeId, varMap, paramNames)
           : item.languages
       };
     }
@@ -561,14 +566,14 @@ export class Resolver {
     return item;
   }
 
-  private scopeExpression(expr: ExpressionNode, mixinScopeId: string, varMap: Map<string, string>): ExpressionNode {
+  private scopeExpression(expr: ExpressionNode, mixinScopeId: string, varMap: Map<string, string>, paramNames?: Set<string>): ExpressionNode {
     if (expr.type === 'VariableNode') {
-      return { type: 'VariableNode', name: this.scopeVar(expr.name, mixinScopeId, varMap) };
+      return { type: 'VariableNode', name: this.scopeVar(expr.name, mixinScopeId, varMap, paramNames) };
     }
     if (expr.type === 'FunctionCallNode') {
       return {
         ...expr,
-        args: expr.args.map(a => this.scopeExpression(a, mixinScopeId, varMap))
+        args: expr.args.map(a => this.scopeExpression(a, mixinScopeId, varMap, paramNames))
       };
     }
     return expr;
