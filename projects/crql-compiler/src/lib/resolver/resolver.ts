@@ -156,13 +156,16 @@ export class Resolver {
   }
 
   private collectBodyVariables(
-    bodyItems: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | ValuesBlockNode | SubSelectNode | unknown>,
+    bodyItems: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | ValuesBlockNode | SubSelectNode | BindNode | unknown>,
     definedVars: Set<string>
   ): void {
     for (const item of bodyItems) {
       const propItem = item as PropertyPatternNode;
-      if (propItem.type === 'PropertyPatternNode' && propItem.value) {
-        if (propItem.value.type === 'VariableNode') {
+      if (propItem.type === 'PropertyPatternNode') {
+        if (propItem.subject) {
+          definedVars.add(propItem.subject);
+        }
+        if (propItem.value && propItem.value.type === 'VariableNode') {
           definedVars.add(propItem.value.name);
         }
       }
@@ -244,9 +247,14 @@ export class Resolver {
       const targetPred = propertyItem.targetPredicate || propertyItem.predicate;
       const valExpr = propertyItem.value;
 
+      let itemWhereSubject = whereSubject;
+      if (propertyItem.subject) {
+        itemWhereSubject = propertyItem.subject === '?focusNode' ? whereSubject : propertyItem.subject;
+      }
+
       if (valExpr.type === 'VariableNode') {
         const varName = valExpr.name;
-        whereClauseLines.push(`${whereSubject} ${propertyItem.predicate} ${varName} .`);
+        whereClauseLines.push(`${itemWhereSubject} ${propertyItem.predicate} ${varName} .`);
         constructTriples.push({ subject: constructSubject, predicate: targetPred, object: varName });
       } else if (valExpr.type === 'FunctionCallNode') {
         const boundVar = `?auto_bound_${ruleIdx}_${bindCounter.count++}`;
@@ -268,7 +276,7 @@ export class Resolver {
         constructTriples.push({ subject: constructSubject, predicate: targetPred, object: boundVar });
       } else {
         const objVal = this.expressionToString(valExpr, paramsMap);
-        whereClauseLines.push(`${whereSubject} ${propertyItem.predicate} ${objVal} .`);
+        whereClauseLines.push(`${itemWhereSubject} ${propertyItem.predicate} ${objVal} .`);
         constructTriples.push({ subject: constructSubject, predicate: targetPred, object: objVal });
       }
       return;

@@ -427,8 +427,13 @@ export class Parser {
       }
     }
 
-    // Standard Property Pattern: predicate [varOrExpr] [=> targetPredicate] [varOrExpr]
-    if (token.type === 'IDENTIFIER') {
+    // Standard Property Pattern: [subjectVar] predicate [varOrExpr] [=> targetPredicate] [varOrExpr]
+    let customSubject: string | undefined = undefined;
+    if (this.check('VARIABLE') && this.peekAhead(1).type === 'IDENTIFIER') {
+      customSubject = this.advance().value;
+    }
+
+    if (this.check('IDENTIFIER')) {
       const predicate = this.advance().value;
 
       let value: ExpressionNode | undefined = undefined;
@@ -466,6 +471,7 @@ export class Parser {
 
       return {
         type: 'PropertyPatternNode',
+        subject: customSubject,
         predicate,
         targetPredicate,
         value

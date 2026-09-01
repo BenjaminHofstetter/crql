@@ -160,6 +160,7 @@ export interface GetDirectiveNode {
 
 export interface PropertyPatternNode {
   type: 'PropertyPatternNode';
+  subject?: string; // Optional custom subject e.g. "?productType" or "?focusNode"
   predicate: string; // e.g. "schema:name"
   targetPredicate?: string; // for mapping e.g. schema:name => ui:title
   value: ExpressionNode;

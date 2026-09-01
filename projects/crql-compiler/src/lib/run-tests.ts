@@ -191,4 +191,36 @@ if (!sparql14.includes('BIND(<https://agriculture.ld.admin.ch/plant-protection/p
 }
 console.log('✔ Test 14: predicate mapping (schema:name ?name => ui:name) isolates WHERE vs CONSTRUCT passed');
 
-console.log('All 14 CRQL Compiler tests passed successfully!');
+const input15 = `
+  @prefix schema: <http://schema.org/>;
+  @prefix ui: <https://myapp>;
+  @prefix psm: <https://agriculture.ld.admin.ch/plant-protection/> ;
+
+  @custom-selector :--product {
+    BIND(<https://agriculture.ld.admin.ch/plant-protection/product/D-7463> AS ?focusNode)
+  }
+
+  @mixin --permissionType {
+    VALUES ?productType {
+      psm:ParallelImport
+      psm:SalePermission
+      psm:RegularProduct
+    }
+    ?focusNode a ?productType .
+    ?productType schema:name ?premissionName => ui:permissionType ;
+  }
+
+  :--product {
+    schema:name ?name => ui:name ;
+    @get --permissionType
+  }
+`;
+const sparql15 = compileCrql(input15);
+if (!sparql15.includes('?productType schema:name ?premissionName .') ||
+    !sparql15.includes('?focusNode_1 ui:permissionType ?premissionName .')) {
+  console.log('SPARQL15 Output:\n', sparql15);
+  throw new Error('Test 15 failed!');
+}
+console.log('✔ Test 15: explicit subject variable (?productType schema:name ...) in WHERE clause passed');
+
+console.log('All 15 CRQL Compiler tests passed successfully!');
