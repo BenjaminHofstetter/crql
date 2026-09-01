@@ -64,9 +64,14 @@ bodyItem:
 	| pageDirective;
 
 propertyPattern:
-	AT_WHERE? SPARQL_VAR? predicate langAttrFilter? expr? (
-		ARROW_RIGHT SPARQL_VAR? targetPredicate expr?
+	AT_WHERE? subjectVar? predicate langAttrFilter? objectExpr? (
+		ARROW_RIGHT targetSubject? targetPredicate targetObject?
 	)?;
+
+subjectVar: SPARQL_VAR;
+targetSubject: SPARQL_VAR;
+objectExpr: expr;
+targetObject: expr;
 
 predicate: CURIE | IDENTIFIER | IRI_REF;
 
