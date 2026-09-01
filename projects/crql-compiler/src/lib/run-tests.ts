@@ -170,4 +170,25 @@ if (!sparql13.includes('BIND(<https://agriculture.ld.admin.ch/plant-protection/p
 }
 console.log('✔ Test 13: BIND(...) inside @custom-selector passed');
 
-console.log('All 13 CRQL Compiler tests passed successfully!');
+const input14 = `
+  @prefix schema: <http://schema.org/>;
+  @prefix ui: <https://myapp>;
+
+  @custom-selector :--product {
+    BIND(<https://agriculture.ld.admin.ch/plant-protection/product/D-7463> AS ?focusNode)
+  }
+
+  :--product {
+    schema:name ?name => ui:name ;
+  }
+`;
+const sparql14 = compileCrql(input14);
+if (!sparql14.includes('BIND(<https://agriculture.ld.admin.ch/plant-protection/product/D-7463> AS ?focusNode_1)') ||
+    !sparql14.includes('?focusNode_1 schema:name ?name .') ||
+    !sparql14.includes('CONSTRUCT {\n  ?focusNode_1 ui:name ?name .')) {
+  console.log('SPARQL14 Output:\n', sparql14);
+  throw new Error('Test 14 failed!');
+}
+console.log('✔ Test 14: predicate mapping (schema:name ?name => ui:name) isolates WHERE vs CONSTRUCT passed');
+
+console.log('All 14 CRQL Compiler tests passed successfully!');

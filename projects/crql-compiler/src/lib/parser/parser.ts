@@ -427,24 +427,41 @@ export class Parser {
       }
     }
 
-    // Standard Property Pattern: predicate [=> targetPredicate] value
+    // Standard Property Pattern: predicate [varOrExpr] [=> targetPredicate] [varOrExpr]
     if (token.type === 'IDENTIFIER') {
       const predicate = this.advance().value;
 
+      let value: ExpressionNode | undefined = undefined;
       let targetPredicate: string | undefined = undefined;
+
+      // 1. Check if variable or expression comes before => (e.g. schema:name ?name => ui:name)
+      if (
+        this.check('VARIABLE') ||
+        this.check('STRING_LITERAL') ||
+        this.check('NUMBER_LITERAL') ||
+        this.check('BOOLEAN_LITERAL') ||
+        this.check('TYPED_LITERAL') ||
+        (this.check('IDENTIFIER') && this.peekAhead(1).type === 'LPAREN')
+      ) {
+        value = this.parseExpression();
+      }
+
+      // 2. Check for => targetPredicate mapping
       if (this.check('ARROW_RIGHT')) {
         this.advance(); // consume '=>'
         targetPredicate = this.consume('IDENTIFIER', 'Expected target predicate after =>').value;
       }
 
-      let value: ExpressionNode;
-      if (this.check('VARIABLE')) {
-        value = { type: 'VariableNode', name: this.advance().value };
-      } else if (this.check('SEMICOLON') || this.check('RBRACE')) {
-        const defaultVarName = predicate.includes(':') ? predicate.split(':')[1] : predicate;
-        value = { type: 'VariableNode', name: `?${defaultVarName}` };
-      } else {
-        value = this.parseExpression();
+      // 3. If value was not provided before =>, check if it comes after => (e.g. schema:name => ui:name ?name)
+      if (!value) {
+        if (this.check('VARIABLE')) {
+          value = { type: 'VariableNode', name: this.advance().value };
+        } else if (this.check('SEMICOLON') || this.check('RBRACE')) {
+          const defaultVarName = predicate.includes(':') ? predicate.split(':')[1] : predicate;
+          value = { type: 'VariableNode', name: `?${defaultVarName}` };
+        } else {
+          value = this.parseExpression();
+        }
       }
 
       return {
