@@ -277,6 +277,29 @@ export class App {
   protected readonly parameterCountry = signal<string>('ex:Estonia');
   protected readonly parameterMinEmp = signal<number>(10);
 
+  // Line numbering & error highlighting computation
+  protected readonly lineCount = computed(() => this.crqlCode().split('\n').length);
+  protected readonly lineNumbers = computed(() => Array.from({ length: this.lineCount() }, (_, i) => i + 1));
+
+  protected readonly errorLine = computed<number | null>(() => {
+    const latest = this.inspector.latestLog();
+    if (latest && latest.status === 'error' && latest.errorMessage) {
+      const match = latest.errorMessage.match(/line\s+(\d+)/i);
+      if (match) {
+        return parseInt(match[1], 10);
+      }
+    }
+    return null;
+  });
+
+  protected syncScroll(event: Event): void {
+    const target = event.target as HTMLElement;
+    const gutter = target.parentElement?.querySelector('.line-numbers') as HTMLElement;
+    if (gutter) {
+      gutter.scrollTop = target.scrollTop;
+    }
+  }
+
   // Reactive SPARQL compilation signal using ngx-crql helper
   protected readonly optionsSignal = computed(
     () => ({

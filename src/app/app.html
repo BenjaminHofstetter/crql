@@ -75,13 +75,25 @@
           <span class="pane-title">CRQL Source Code</span>
           <span class="badge">.crql</span>
         </div>
-        <textarea 
-          class="code-input" 
-          aria-label="CRQL Source Code Editor"
-          spellcheck="false"
-          [value]="crqlCode()" 
-          (input)="updateCode($any($event.target).value)">
-        </textarea>
+        <div class="editor-container">
+          <div class="line-numbers" aria-hidden="true">
+            @for (lineNum of lineNumbers(); track lineNum) {
+              <div 
+                class="line-number" 
+                [class.has-error]="errorLine() === lineNum">
+                {{ lineNum }}
+              </div>
+            }
+          </div>
+          <textarea 
+            class="code-input" 
+            aria-label="CRQL Source Code Editor"
+            spellcheck="false"
+            [value]="crqlCode()" 
+            (scroll)="syncScroll($event)"
+            (input)="updateCode($any($event.target).value)">
+          </textarea>
+        </div>
       </div>
 
       <!-- Compiled Output Box -->
