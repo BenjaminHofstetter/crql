@@ -481,4 +481,41 @@ if (!sparql25.includes('?share_mx1 schema:unitCode ?unit_mx1 .') ||
 }
 console.log('✔ Test 25: Turtle style predicate list semicolon chaining (?substance a ... ; schema:name ...) passed');
 
-console.log('All 25 CRQL Compiler tests passed successfully!');
+const input26 = `
+  @prefix schema: <http://schema.org/>;
+  @prefix psm: <https://agriculture.ld.admin.ch/plant-protection/> ;
+  @prefix qudt: <http://qudt.org/schema/qudt/> ;
+  @prefix ui: <https://myapp> ;
+
+  @mixin --substance {
+     psm:ingredient ?ingredient .
+     
+     ?ingredient psm:share ?share .
+
+     ?share a ?shareType ;
+       schema:unitCode ?unit;
+       qudt:symbol ?symbol;
+       schema:value ?value ;
+     .
+     ?ingredient psm:substance ?substance .
+     ?substance a ?substanceType ;
+       schema:name ?name => ui:substanceName ;
+       psm:iupacName ?iupacName ;
+     .
+  }
+
+  :--product {
+    @get --substance ;
+  }
+`;
+const sparql26 = compileCrql(input26);
+const constructSection26 = sparql26.split('CONSTRUCT {')[1].split('}')[0];
+if (!constructSection26.includes('?share_mx1 schema:unitCode ?unit_mx1 .') ||
+    !constructSection26.includes('?substance_mx1 psm:iupacName ?iupacName_mx1 .') ||
+    !constructSection26.includes('?focusNode_1 ui:substanceName ?name_mx1 .')) {
+  console.log('SPARQL26 Output:\n', sparql26);
+  throw new Error('Test 26 failed!');
+}
+console.log('✔ Test 26: preservation of graph subjects in CONSTRUCT vs mapped focus-node properties passed');
+
+console.log('All 26 CRQL Compiler tests passed successfully!');

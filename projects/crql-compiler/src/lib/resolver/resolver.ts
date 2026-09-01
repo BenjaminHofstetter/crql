@@ -315,6 +315,8 @@ export class Resolver {
       let itemConstructSubject = constructSubject;
       if (propertyItem.constructSubject) {
         itemConstructSubject = propertyItem.constructSubject === '?focusNode' ? constructSubject : propertyItem.constructSubject;
+      } else if (propertyItem.subject && !propertyItem.targetPredicate) {
+        itemConstructSubject = itemWhereSubject;
       }
 
       if (valExpr.type === 'VariableNode') {
