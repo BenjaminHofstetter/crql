@@ -274,6 +274,9 @@ export class Lexer {
     switch (value) {
       case '@prefix':
         return { type: 'AT_PREFIX', value, line, column };
+      case '@const':
+      case '@constant':
+        return { type: 'AT_CONST', value, line, column };
       case '@custom-selector':
       case '@selector':
         return { type: 'AT_CUSTOM_SELECTOR', value, line, column };

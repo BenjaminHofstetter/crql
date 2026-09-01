@@ -37,6 +37,22 @@ export class Resolver {
   private mixins = new Map<string, MixinNode>();
 
   public resolve(ast: DocumentNode, paramsMap?: Record<string, unknown>): ResolvedDocument {
+    // Populate document-level constants (@const $name = value) into mergedParamsMap
+    const mergedParamsMap: Record<string, unknown> = { ...paramsMap };
+    if (ast.constants) {
+      for (const c of ast.constants) {
+        const rawName = c.name.replace(/^\$|^\?/, '');
+        const valStr = this.expressionToString(c.value, paramsMap).replace(/^"|"$/g, '');
+        if (!(rawName in mergedParamsMap)) {
+          mergedParamsMap[rawName] = valStr;
+          mergedParamsMap[`$${rawName}`] = valStr;
+          mergedParamsMap[`?${rawName}`] = valStr;
+          mergedParamsMap[c.name] = valStr;
+        }
+      }
+    }
+    paramsMap = mergedParamsMap;
+
     // 1. Register custom selectors and mixins
     for (const cs of ast.customSelectors) {
       this.customSelectors.set(cs.name, cs);

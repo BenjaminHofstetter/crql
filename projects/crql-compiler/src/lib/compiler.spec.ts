@@ -434,4 +434,37 @@ describe('CRQL Formal Language Test Suite', () => {
       expect(merged).toContain('?focusNode_2 schema:name ?name');
     });
   });
+
+  describe('Document Constants (@const)', () => {
+    it('resolves document-level constants in property patterns, custom selectors, and mixins', () => {
+      const input = `
+        @prefix schema: <http://schema.org/>;
+        @prefix ui: <https://myapp>;
+
+        @const $defaultLangs = "de,fr" ;
+        @const $activeStatus = "Active" ;
+        @const $targetCountry = ex:Estonia ;
+
+        @custom-selector :--estoniaCompanies {
+          ?focusNode a ex:Company .
+          ?focusNode ex:country $targetCountry .
+        }
+
+        @mixin --localizedName($langs) {
+          schema:name[lang=$langs] ?name => ui:name ;
+        }
+
+        :--estoniaCompanies {
+          ex:status $activeStatus ;
+          @use --localizedName($defaultLangs) ;
+        }
+      `;
+
+      const sparql = compileCrql(input);
+
+      expect(sparql).toContain('?focusNode_1 ex:country ex:Estonia .');
+      expect(sparql).toContain('?focusNode_1 ex:status "Active" .');
+      expect(sparql).toContain('FILTER(LANG(?name_mx1) IN ("de", "fr"))');
+    });
+  });
 });

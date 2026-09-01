@@ -5,6 +5,7 @@ import {
   BindNode,
   BodyItemNode,
   BooleanLiteralNode,
+  ConstantDeclNode,
   CustomSelectorNode,
   CustomSelectorPattern,
   DocumentNode,
@@ -45,6 +46,7 @@ export class Parser {
 
   public parse(): DocumentNode {
     const prefixes: PrefixDeclNode[] = [];
+    const constants: ConstantDeclNode[] = [];
     const customSelectors: CustomSelectorNode[] = [];
     const mixins: MixinNode[] = [];
     const rules: RuleBlockNode[] = [];
@@ -55,6 +57,8 @@ export class Parser {
 
       if (token.type === 'AT_PREFIX') {
         prefixes.push(this.parsePrefixDecl());
+      } else if (token.type === 'AT_CONST') {
+        constants.push(this.parseConstantDecl());
       } else if (token.type === 'AT_CUSTOM_SELECTOR') {
         customSelectors.push(this.parseCustomSelectorDef());
       } else if (token.type === 'AT_MIXIN') {
@@ -76,6 +80,7 @@ export class Parser {
     return {
       type: 'DocumentNode',
       prefixes,
+      constants,
       customSelectors,
       mixins,
       rules,
@@ -103,6 +108,26 @@ export class Parser {
       type: 'PrefixDeclNode',
       prefix,
       iri
+    };
+  }
+
+  private parseConstantDecl(): ConstantDeclNode {
+    this.consume('AT_CONST', "Expected '@const' or '@constant'");
+    let nameToken: Token;
+    if (this.check('PARAM_VAR') || this.check('VARIABLE')) {
+      nameToken = this.advance();
+    } else {
+      nameToken = this.consume('IDENTIFIER', 'Expected constant variable starting with $ or ?');
+    }
+    this.consume('EQUALS', "Expected '=' after constant name");
+    const valExpr = this.parseExpression();
+    if (this.check('SEMICOLON')) {
+      this.advance();
+    }
+    return {
+      type: 'ConstantDeclNode',
+      name: nameToken.value,
+      value: valExpr
     };
   }
 

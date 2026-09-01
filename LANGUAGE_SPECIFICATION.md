@@ -116,6 +116,29 @@ Mixins can invoke other mixins and recursively forward parameters:
 }
 ```
 
+### 4.5 Document-Level Constants (`@const`)
+Constants allow defining document-scoped configuration values (strings, numbers, IRIs, language lists) once at the top of the stylesheet and referencing them throughout rule blocks and mixins:
+
+```css
+@prefix schema: <http://schema.org/>;
+@prefix ui: <https://myapp>;
+
+/* Document-level Constants */
+@const $defaultLangs = "de,en,fr" ;
+@const $activeStatus = "Active" ;
+@const $estoniaUri = ex:Estonia ;
+
+@custom-selector :--targetCompanies {
+  ?focusNode a ex:Company .
+  ?focusNode ex:country $estoniaUri .
+}
+
+:--targetCompanies {
+  ex:status $activeStatus ;
+  schema:name[lang=$defaultLangs] ?name => ui:name ;
+}
+```
+
 ---
 
 ## 5. Rule Blocks (`:--selector`)

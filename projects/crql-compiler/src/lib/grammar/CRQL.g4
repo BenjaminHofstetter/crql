@@ -9,9 +9,11 @@ grammar CRQL;
 // --- PARSER RULES ---
 
 crqlDocument:
-	prefixDeclaration* (selectorDefinition | mixinDef | ruleBlock)* EOF;
+	prefixDeclaration* constantDecl* (selectorDefinition | mixinDef | ruleBlock)* EOF;
 
 prefixDeclaration: AT_PREFIX (IDENTIFIER COLON | COLON) IRI_REF SEMI;
+
+constantDecl: (AT_CONST | AT_CONSTANT) (PARAM_VAR | SPARQL_VAR) EQUALS expr SEMI?;
 
 selectorDefinition:
 	(AT_CUSTOM_SELECTOR | AT_SELECTOR) selectorName LBRACE selectorBody RBRACE;
@@ -149,6 +151,8 @@ functionCall: IDENTIFIER LPAREN (expr (COMMA expr)*)? RPAREN;
 // --- LEXER RULES ---
 
 AT_PREFIX: '@prefix';
+AT_CONST: '@const';
+AT_CONSTANT: '@constant';
 AT_CUSTOM_SELECTOR: '@custom-selector';
 AT_SELECTOR: '@selector';
 AT_MIXIN: '@mixin';

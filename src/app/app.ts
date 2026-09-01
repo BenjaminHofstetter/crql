@@ -267,6 +267,33 @@ export class App {
 :--product {
   @use --country("de,it") ;
 }`
+    },
+    {
+      id: 'constants',
+      title: '11. Document-Level Constants (@const)',
+      description: 'Define application-wide constants ($defaultLangs, $activeStatus, $targetCountry) and reuse them throughout stylesheet rules.',
+      code: `@prefix schema: <http://schema.org/>;
+@prefix ui: <https://myapp>;
+@prefix ex: <http://example.org/>;
+
+/* Document-level Constants */
+@const $defaultLangs = "de,fr" ;
+@const $activeStatus = "Active" ;
+@const $targetCountry = ex:Estonia ;
+
+@custom-selector :--estoniaCompanies {
+  ?focusNode a ex:Company ;
+             ex:headQuarterCountry $targetCountry .
+}
+
+@mixin --localizedName($langs) {
+  schema:name[lang=$langs] ?name => ui:name ;
+}
+
+:--estoniaCompanies {
+  ex:status $activeStatus ;
+  @use --localizedName($defaultLangs) ;
+}`
     }
   ];
 

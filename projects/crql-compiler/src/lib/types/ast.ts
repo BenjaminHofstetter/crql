@@ -1,5 +1,6 @@
 export type TokenType =
   | 'AT_PREFIX'
+  | 'AT_CONST'
   | 'AT_CUSTOM_SELECTOR'
   | 'AT_MIXIN'
   | 'AT_USE'
@@ -77,10 +78,17 @@ export type ASTNode =
 export interface DocumentNode {
   type: 'DocumentNode';
   prefixes: PrefixDeclNode[];
+  constants?: ConstantDeclNode[];
   customSelectors: CustomSelectorNode[];
   mixins: MixinNode[];
   rules: RuleBlockNode[];
   langDirectives?: LangDirectiveNode[];
+}
+
+export interface ConstantDeclNode {
+  type: 'ConstantDeclNode';
+  name: string; // e.g. "$defaultLangs" or "$activeStatus"
+  value: ExpressionNode;
 }
 
 export interface PrefixDeclNode {
