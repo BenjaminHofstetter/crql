@@ -454,6 +454,7 @@ export class Parser {
 
         return {
           type: 'NestedTraversalNode',
+          subject: inheritedSubject,
           path: pathToken.value,
           isInverse,
           body

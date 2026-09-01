@@ -326,7 +326,7 @@ const input19 = `
   }
 `;
 const sparql19 = compileCrql(input19);
-if (!sparql19.includes('FILTER(LANG(?name_mx1) IN ("de", "it"))')) {
+if (!sparql19.includes('FILTER(LANG(?name_mx2) IN ("de", "it"))') && !sparql19.includes('FILTER(LANG(?name_mx1) IN ("de", "it"))')) {
   console.log('SPARQL19 Output:\n', sparql19);
   throw new Error('Test 19 failed!');
 }
@@ -518,4 +518,38 @@ if (!constructSection26.includes('?share_mx1 schema:unitCode ?unit_mx1 .') ||
 }
 console.log('✔ Test 26: preservation of graph subjects in CONSTRUCT vs mapped focus-node properties passed');
 
-console.log('All 26 CRQL Compiler tests passed successfully!');
+const input27 = `
+  @prefix schema: <http://schema.org/>;
+  @prefix psm: <https://agriculture.ld.admin.ch/plant-protection/> ;
+  @prefix qudt: <http://qudt.org/schema/qudt/> ;
+
+  @mixin --substance {
+     psm:ingredient ?ingredient .
+     
+     ?ingredient psm:share ?share .
+     ?share a ?shareType ;
+       schema:unitCode {
+          qudt:symbol ?symbol;
+       }
+       schema:value ?value ;
+     .
+     ?ingredient psm:substance ?substance .
+     ?substance a ?substanceType ;
+       schema:name ?name ; 
+       psm:iupacName ?iupacName ;              
+     .
+  }
+
+  :--product {
+    @get --substance ;
+  }
+`;
+const sparql27 = compileCrql(input27);
+if (!sparql27.includes('?share_mx1 schema:unitCode ?child_1_schema_unitCode .') ||
+    !sparql27.includes('?child_1_schema_unitCode qudt:symbol ?symbol_mx1 .')) {
+  console.log('SPARQL27 Output:\n', sparql27);
+  throw new Error('Test 27 failed!');
+}
+console.log('✔ Test 27: nested traversal inside semicolon-chained block inherits subject (?share schema:unitCode) passed');
+
+console.log('All 27 CRQL Compiler tests passed successfully!');

@@ -415,15 +415,19 @@ export class Resolver {
 
     const nestedTraversal = item as NestedTraversalNode;
     if (nestedTraversal.type === 'NestedTraversalNode') {
+      let parentSubject = whereSubject;
+      if (nestedTraversal.subject) {
+        parentSubject = nestedTraversal.subject === '?focusNode' ? whereSubject : nestedTraversal.subject;
+      }
       const childVar = `?child_${ruleIdx}_${nestedTraversal.path.replace(/[:/^-]/g, '_')}`;
       if (nestedTraversal.isInverse) {
-        whereClauseLines.push(`${childVar} ${nestedTraversal.path} ${whereSubject} .`);
+        whereClauseLines.push(`${childVar} ${nestedTraversal.path} ${parentSubject} .`);
       } else {
-        whereClauseLines.push(`${whereSubject} ${nestedTraversal.path} ${childVar} .`);
+        whereClauseLines.push(`${parentSubject} ${nestedTraversal.path} ${childVar} .`);
       }
 
       for (const childItem of nestedTraversal.body) {
-        this.expandBodyItem(childItem, childVar, constructSubject, whereClauseLines, constructTriples, definedVars, paramsMap, ruleIdx, bindCounter);
+        this.expandBodyItem(childItem, childVar, constructSubject, whereClauseLines, constructTriples, definedVars, paramsMap, ruleIdx, bindCounter, mixinCounter);
       }
       return;
     }
@@ -542,6 +546,7 @@ export class Resolver {
     if (item.type === 'NestedTraversalNode') {
       return {
         ...item,
+        subject: item.subject ? this.scopeVar(item.subject, mixinScopeId, varMap, paramNames) : undefined,
         body: item.body.map(b => this.scopeBodyItem(b, mixinScopeId, varMap, paramNames))
       };
     }

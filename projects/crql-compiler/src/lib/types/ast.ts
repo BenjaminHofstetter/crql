@@ -191,6 +191,7 @@ export interface PropertyPatternNode {
 
 export interface NestedTraversalNode {
   type: 'NestedTraversalNode';
+  subject?: string;
   path: string; // e.g. "ex:hasManager" or "^ex:hasMember"
   isInverse?: boolean;
   body: BodyItemNode[];
