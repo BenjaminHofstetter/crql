@@ -1,5 +1,8 @@
 import {
+  BindNode,
+  BodyItemNode,
   CustomSelectorNode,
+  CustomSelectorPattern,
   DocumentNode,
   ExpressionNode,
   FunctionCallNode,
@@ -10,7 +13,9 @@ import {
   PropertyPatternNode,
   RuleBlockNode,
   SelectorExprNode,
-  TriplePattern
+  SubSelectNode,
+  TriplePattern,
+  ValuesBlockNode
 } from '../types/ast';
 
 export interface ResolvedRuleBlock {
@@ -63,9 +68,16 @@ export class Resolver {
         if (this.customSelectors.has(selector.name)) {
           const csDef = this.customSelectors.get(selector.name)!;
           for (const pattern of csDef.patterns) {
-            const subj = pattern.subject === '?focusNode' ? subjectVar : pattern.subject;
-            const obj = this.expressionToString(pattern.object, paramsMap);
-            whereClauseLines.push(`${subj} ${pattern.predicate} ${obj} .`);
+            const bindPattern = pattern as BindNode;
+            if (bindPattern.type === 'BindNode') {
+              const targetVar = bindPattern.variable === '?focusNode' ? subjectVar : bindPattern.variable;
+              whereClauseLines.push(`BIND(${bindPattern.expressionText} AS ${targetVar})`);
+            } else {
+              const triplePattern = pattern as TriplePattern;
+              const subj = triplePattern.subject === '?focusNode' ? subjectVar : triplePattern.subject;
+              const obj = this.expressionToString(triplePattern.object, paramsMap);
+              whereClauseLines.push(`${subj} ${triplePattern.predicate} ${obj} .`);
+            }
           }
         } else if (!selector.name.startsWith(':--') && !selector.name.startsWith('--')) {
           // Direct type selector e.g. ex:Company or schema:Organization
@@ -90,11 +102,17 @@ export class Resolver {
         if (this.customSelectors.has(selector.name)) {
           const csDef = this.customSelectors.get(selector.name)!;
           for (const pattern of csDef.patterns) {
-            if (typeof pattern.subject === 'string' && pattern.subject.startsWith('?')) {
-              definedVars.add(pattern.subject);
-            }
-            if (typeof pattern.object === 'object' && pattern.object && pattern.object.type === 'VariableNode') {
-              definedVars.add(pattern.object.name);
+            const bindPattern = pattern as BindNode;
+            if (bindPattern.type === 'BindNode') {
+              definedVars.add(bindPattern.variable);
+            } else {
+              const triplePattern = pattern as TriplePattern;
+              if (typeof triplePattern.subject === 'string' && triplePattern.subject.startsWith('?')) {
+                definedVars.add(triplePattern.subject);
+              }
+              if (typeof triplePattern.object === 'object' && triplePattern.object && triplePattern.object.type === 'VariableNode') {
+                definedVars.add(triplePattern.object.name);
+              }
             }
           }
         }
@@ -138,7 +156,7 @@ export class Resolver {
   }
 
   private collectBodyVariables(
-    bodyItems: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | unknown>,
+    bodyItems: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | ValuesBlockNode | SubSelectNode | unknown>,
     definedVars: Set<string>
   ): void {
     for (const item of bodyItems) {
@@ -157,6 +175,22 @@ export class Resolver {
       if (nested.type === 'NestedTraversalNode') {
         this.collectBodyVariables(nested.body, definedVars);
       }
+      const valuesItem = item as ValuesBlockNode;
+      if (valuesItem.type === 'ValuesBlockNode') {
+        for (const v of valuesItem.variables) {
+          definedVars.add(v);
+        }
+      }
+      const subSelectItem = item as SubSelectNode;
+      if (subSelectItem.type === 'SubSelectNode') {
+        for (const v of subSelectItem.projectedVars) {
+          definedVars.add(v);
+        }
+      }
+      const bindItem = item as BindNode;
+      if (bindItem.type === 'BindNode') {
+        definedVars.add(bindItem.variable);
+      }
     }
   }
 
@@ -173,7 +207,7 @@ export class Resolver {
   }
 
   private expandBodyItem(
-    item: PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | unknown,
+    item: PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | ValuesBlockNode | SubSelectNode | BindNode | unknown,
     whereSubject: string,
     constructSubject: string,
     whereClauseLines: string[],
@@ -183,6 +217,27 @@ export class Resolver {
     ruleIdx = 1,
     bindCounter = { count: 1 }
   ) {
+    const bindItem = item as BindNode;
+    if (bindItem.type === 'BindNode') {
+      const targetVar = bindItem.variable === '?focusNode' ? whereSubject : bindItem.variable;
+      whereClauseLines.push(`BIND(${bindItem.expressionText} AS ${targetVar})`);
+      return;
+    }
+
+    const valuesItem = item as ValuesBlockNode;
+    if (valuesItem.type === 'ValuesBlockNode') {
+      const varStr = valuesItem.variables.join(' ');
+      const formattedVars = valuesItem.variables.length > 1 ? `(${varStr})` : varStr;
+      whereClauseLines.push(`VALUES ${formattedVars} { ${valuesItem.valuesText} }`);
+      return;
+    }
+
+    const subSelectItem = item as SubSelectNode;
+    if (subSelectItem.type === 'SubSelectNode') {
+      whereClauseLines.push(`{\n    ${subSelectItem.queryText}\n  }`);
+      return;
+    }
+
     const propertyItem = item as PropertyPatternNode;
 
     if (propertyItem.type === 'PropertyPatternNode') {

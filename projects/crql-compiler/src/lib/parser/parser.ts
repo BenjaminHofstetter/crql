@@ -2,8 +2,11 @@ import { Lexer } from '../lexer/lexer';
 import {
   ASTNode,
   AttributeFilterNode,
+  BindNode,
+  BodyItemNode,
   BooleanLiteralNode,
   CustomSelectorNode,
+  CustomSelectorPattern,
   DocumentNode,
   ExpressionNode,
   FallbackBlockNode,
@@ -20,10 +23,12 @@ import {
   RuleBlockNode,
   SelectorExprNode,
   StringLiteralNode,
+  SubSelectNode,
   Token,
   TokenType,
   TriplePattern,
   TypedLiteralNode,
+  ValuesBlockNode,
   VariableNode
 } from '../types/ast';
 
@@ -106,11 +111,24 @@ export class Parser {
 
     this.consume('LBRACE', "Expected '{' to start custom selector block");
 
-    const patterns: TriplePattern[] = [];
+    const patterns: CustomSelectorPattern[] = [];
     let currentSubject = '?focusNode';
 
     while (!this.check('RBRACE') && !this.isAtEnd()) {
       const startPos = this.pos;
+      if (
+        this.check('AT_BIND') ||
+        (this.check('IDENTIFIER') && this.peek().value.toUpperCase() === 'BIND')
+      ) {
+        patterns.push(this.parseBindNode());
+        if (this.check('SEMICOLON') || this.check('DOT')) {
+          this.advance();
+        }
+        if (this.pos === startPos) {
+          this.advance();
+        }
+        continue;
+      }
       if (this.check('VARIABLE')) {
         currentSubject = this.advance().value;
       }
@@ -158,7 +176,7 @@ export class Parser {
 
     this.consume('LBRACE', "Expected '{' to start mixin block");
 
-    const body: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | FallbackBlockNode> = [];
+    const body: BodyItemNode[] = [];
     while (!this.check('RBRACE') && !this.isAtEnd()) {
       const startPos = this.pos;
       const item = this.parseRuleBodyItem();
@@ -236,7 +254,7 @@ export class Parser {
 
     this.consume('LBRACE', "Expected '{' to start rule block");
 
-    const body: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | FallbackBlockNode> = [];
+    const body: BodyItemNode[] = [];
     let pageDirectives: PageDirectiveNode | undefined = undefined;
 
     while (!this.check('RBRACE') && !this.isAtEnd()) {
@@ -348,7 +366,7 @@ export class Parser {
     };
   }
 
-  private parseRuleBodyItem(): PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | FallbackBlockNode | null {
+  private parseRuleBodyItem(): BodyItemNode | null {
     const token = this.peek();
 
     if (token.type === 'AT_GET') {
@@ -357,6 +375,22 @@ export class Parser {
 
     if (token.type === 'AT_FALLBACK') {
       return this.parseFallbackBlock();
+    }
+
+    if (token.type === 'AT_VALUES' || (token.type === 'IDENTIFIER' && token.value.toUpperCase() === 'VALUES')) {
+      return this.parseValuesBlock();
+    }
+
+    if (token.type === 'AT_BIND' || (token.type === 'IDENTIFIER' && token.value.toUpperCase() === 'BIND')) {
+      return this.parseBindNode();
+    }
+
+    if (
+      token.type === 'AT_SELECT' ||
+      (token.type === 'IDENTIFIER' && token.value.toUpperCase() === 'SELECT') ||
+      (token.type === 'LBRACE' && this.peekAhead(1).type === 'IDENTIFIER' && this.peekAhead(1).value.toUpperCase() === 'SELECT')
+    ) {
+      return this.parseSubSelectBlock();
     }
 
     // Check for nested traversal e.g. ex:hasManager > { ... } or ^ex:hasMember > { ... }
@@ -372,7 +406,7 @@ export class Parser {
         this.advance(); // consume '>'
         this.consume('LBRACE', "Expected '{' for nested traversal block");
 
-        const body: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode> = [];
+        const body: BodyItemNode[] = [];
         while (!this.check('RBRACE') && !this.isAtEnd()) {
           const startPos = this.pos;
           const item = this.parseRuleBodyItem();
@@ -424,6 +458,135 @@ export class Parser {
     return null;
   }
 
+  private parseValuesBlock(): ValuesBlockNode {
+    if (this.check('AT_VALUES')) {
+      this.advance();
+    } else {
+      this.consume('IDENTIFIER', "Expected 'VALUES'");
+    }
+
+    const variables: string[] = [];
+
+    if (this.check('LPAREN')) {
+      this.advance();
+      while (this.check('VARIABLE')) {
+        variables.push(this.advance().value);
+      }
+      this.consume('RPAREN', "Expected ')' after VALUES variables");
+    } else {
+      while (this.check('VARIABLE')) {
+        variables.push(this.advance().value);
+      }
+    }
+
+    this.consume('LBRACE', "Expected '{' for VALUES block");
+    
+    let depth = 1;
+    let valuesText = '';
+    while (depth > 0 && !this.isAtEnd()) {
+      const tok = this.peek();
+      if (tok.type === 'LBRACE') {
+        depth++;
+        valuesText += tok.value + ' ';
+      } else if (tok.type === 'RBRACE') {
+        depth--;
+        if (depth > 0) valuesText += tok.value + ' ';
+      } else {
+        valuesText += tok.value + ' ';
+      }
+      this.advance();
+    }
+
+    return {
+      type: 'ValuesBlockNode',
+      variables,
+      valuesText: valuesText.trim()
+    };
+  }
+
+  private parseSubSelectBlock(): SubSelectNode {
+    if (this.check('AT_SELECT')) {
+      this.advance();
+    }
+
+    let hasBrace = false;
+    if (this.check('LBRACE')) {
+      this.advance();
+      hasBrace = true;
+    }
+
+    let queryText = 'SELECT ';
+    if (this.check('IDENTIFIER') && this.peek().value.toUpperCase() === 'SELECT') {
+      this.advance();
+    }
+
+    const projectedVars: string[] = [];
+
+    while (!this.isAtEnd() && this.peek().value.toUpperCase() !== 'WHERE' && !this.check('LBRACE')) {
+      const tok = this.advance();
+      queryText += tok.value + ' ';
+      if (tok.type === 'VARIABLE') {
+        projectedVars.push(tok.value);
+      }
+    }
+
+    let depth = hasBrace ? 1 : 0;
+    while (!this.isAtEnd()) {
+      const tok = this.peek();
+      if (tok.type === 'LBRACE') {
+        depth++;
+        queryText += tok.value + ' ';
+      } else if (tok.type === 'RBRACE') {
+        depth--;
+        if (depth < 1 && hasBrace) {
+          this.advance();
+          break;
+        }
+        queryText += tok.value + ' ';
+      } else if (tok.type === 'SEMICOLON' && depth === 0) {
+        break;
+      } else {
+        queryText += tok.value + ' ';
+      }
+      this.advance();
+    }
+
+    return {
+      type: 'SubSelectNode',
+      queryText: queryText.trim(),
+      projectedVars
+    };
+  }
+
+  private parseBindNode(): BindNode {
+    if (this.check('AT_BIND')) {
+      this.advance();
+    } else {
+      this.consume('IDENTIFIER', "Expected 'BIND'");
+    }
+
+    this.consume('LPAREN', "Expected '(' after BIND");
+
+    let exprText = '';
+    while (!this.isAtEnd() && this.peek().value.toUpperCase() !== 'AS') {
+      const tok = this.advance();
+      exprText += tok.value + ' ';
+    }
+
+    if (this.peek().value.toUpperCase() === 'AS') {
+      this.advance();
+    }
+
+    const varToken = this.consume('VARIABLE', 'Expected target variable after AS in BIND');
+    this.consume('RPAREN', "Expected ')' at end of BIND expression");
+
+    return {
+      type: 'BindNode',
+      expressionText: exprText.trim(),
+      variable: varToken.value
+    };
+  }
+
   private parseGetDirective(): GetDirectiveNode {
     this.consume('AT_GET', "Expected '@get'");
     const mixinNameToken = this.consume('MIXIN_NAME', 'Expected mixin name starting with --');
@@ -451,13 +614,13 @@ export class Parser {
     this.consume('AT_FALLBACK', "Expected '@fallback'");
     this.consume('LBRACE', "Expected '{' to start fallback block");
 
-    const branches: Array<Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode>> = [];
+    const branches: BodyItemNode[][] = [];
 
     while (!this.check('RBRACE') && !this.isAtEnd()) {
       const startPos = this.pos;
       if (this.check('LBRACE')) {
         this.advance();
-        const branchItems: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode> = [];
+        const branchItems: BodyItemNode[] = [];
         while (!this.check('RBRACE') && !this.isAtEnd()) {
           const bStartPos = this.pos;
           const item = this.parseRuleBodyItem();

@@ -290,6 +290,12 @@ export class Lexer {
         return { type: 'AT_OFFSET', value, line, column };
       case '@order-by':
         return { type: 'AT_ORDER_BY', value, line, column };
+      case '@values':
+        return { type: 'AT_VALUES', value, line, column };
+      case '@select':
+        return { type: 'AT_SELECT', value, line, column };
+      case '@bind':
+        return { type: 'AT_BIND', value, line, column };
       default:
         return { type: 'IDENTIFIER', value, line, column };
     }

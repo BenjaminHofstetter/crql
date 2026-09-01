@@ -117,4 +117,57 @@ if (!sparql10.includes('?focusNode_1 ui:icon ?icon .') || !sparql10.includes('ex
 }
 console.log('✔ Test 10: nested traversal inside @mixin & @get passed');
 
-console.log('All 10 CRQL Compiler tests passed successfully!');
+const input11 = `
+  @mixin --permissionType {
+    VALUES ?productType {
+      psm:ParallelImport
+      psm:SalePermission
+      psm:RegularProduct
+    }
+    a => appPrefix:permissionType ?productType ;
+  }
+  :--productRules {
+    @get --permissionType ;
+  }
+`;
+const sparql11 = compileCrql(input11);
+if (!sparql11.includes('VALUES ?productType { psm:ParallelImport psm:SalePermission psm:RegularProduct }') || !sparql11.includes('?focusNode_1 appPrefix:permissionType ?productType .')) {
+  throw new Error('Test 11 failed!');
+}
+console.log('✔ Test 11: VALUES block inside @mixin passed');
+
+const input12 = `
+  @mixin --reviewStats {
+    {
+      SELECT ?focusNode (COUNT(?review) AS ?reviewCount) WHERE {
+        ?focusNode ex:hasReview ?review .
+      }
+      GROUP BY ?focusNode
+    }
+    ex:reviewCount ?reviewCount ;
+  }
+  :--popularProducts {
+    @get --reviewStats ;
+  }
+`;
+const sparql12 = compileCrql(input12);
+if (!sparql12.includes('SELECT ?focusNode') || !sparql12.includes('?focusNode_1 ex:reviewCount ?reviewCount .')) {
+  throw new Error('Test 12 failed!');
+}
+console.log('✔ Test 12: Sub-SELECT query inside @mixin passed');
+
+const input13 = `
+  @custom-selector :--PlantProtectionProduct {
+    BIND (<https://agriculture.ld.admin.ch/plant-protection/product/D-7463> as ?focusNode )
+  }
+  :--PlantProtectionProduct {
+    schema:name ?name ;
+  }
+`;
+const sparql13 = compileCrql(input13);
+if (!sparql13.includes('BIND(<https://agriculture.ld.admin.ch/plant-protection/product/D-7463> AS ?focusNode_1)') || !sparql13.includes('?focusNode_1 schema:name ?name .')) {
+  throw new Error('Test 13 failed!');
+}
+console.log('✔ Test 13: BIND(...) inside @custom-selector passed');
+
+console.log('All 13 CRQL Compiler tests passed successfully!');

@@ -8,6 +8,9 @@ export type TokenType =
   | 'AT_LIMIT'
   | 'AT_OFFSET'
   | 'AT_ORDER_BY'
+  | 'AT_VALUES'
+  | 'AT_SELECT'
+  | 'AT_BIND'
   | 'CUSTOM_SELECTOR_NAME' // e.g. :--estoniaCompanies
   | 'MIXIN_NAME'           // e.g. --name-and-address
   | 'IDENTIFIER'           // e.g. schema:name, ex:Company, concat
@@ -60,6 +63,9 @@ export type ASTNode =
   | PropertyPatternNode
   | NestedTraversalNode
   | FallbackBlockNode
+  | ValuesBlockNode
+  | SubSelectNode
+  | BindNode
   | ExpressionNode
   | PageDirectiveNode;
 
@@ -82,18 +88,47 @@ export interface ParameterDef {
   defaultValue?: ExpressionNode;
 }
 
+export interface BindNode {
+  type: 'BindNode';
+  expressionText: string; // e.g. "<https://agriculture.ld.admin.ch/plant-protection/product/D-7463>"
+  variable: string;       // e.g. "?focusNode"
+}
+
+export type CustomSelectorPattern = TriplePattern | BindNode;
+
 export interface CustomSelectorNode {
   type: 'CustomSelectorNode';
   name: string; // e.g. ":--estoniaCompanies"
   params: ParameterDef[];
-  patterns: TriplePattern[];
+  patterns: CustomSelectorPattern[];
 }
+
+export interface ValuesBlockNode {
+  type: 'ValuesBlockNode';
+  variables: string[]; // e.g. ["?productType"]
+  valuesText: string;  // e.g. "psm:ParallelImport psm:SalePermission psm:RegularProduct"
+}
+
+export interface SubSelectNode {
+  type: 'SubSelectNode';
+  queryText: string;       // Raw inner SPARQL sub-query e.g. "SELECT ?focusNode (COUNT(?review) AS ?reviewCount) WHERE { ... } GROUP BY ?focusNode"
+  projectedVars: string[]; // Variables projected in SELECT clause e.g. ["?focusNode", "?reviewCount"]
+}
+
+export type BodyItemNode =
+  | PropertyPatternNode
+  | GetDirectiveNode
+  | NestedTraversalNode
+  | FallbackBlockNode
+  | ValuesBlockNode
+  | SubSelectNode
+  | BindNode;
 
 export interface MixinNode {
   type: 'MixinNode';
   name: string; // e.g. "--name-and-address"
   params: ParameterDef[];
-  body: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | FallbackBlockNode>;
+  body: BodyItemNode[];
 }
 
 export interface TriplePattern {
@@ -134,18 +169,18 @@ export interface NestedTraversalNode {
   type: 'NestedTraversalNode';
   path: string; // e.g. "ex:hasManager" or "^ex:hasMember"
   isInverse?: boolean;
-  body: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode>;
+  body: BodyItemNode[];
 }
 
 export interface FallbackBlockNode {
   type: 'FallbackBlockNode';
-  branches: Array<Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode>>;
+  branches: BodyItemNode[][];
 }
 
 export interface RuleBlockNode {
   type: 'RuleBlockNode';
   selectors: SelectorExprNode[]; // comma separated selectors (OR / UNION)
-  body: Array<PropertyPatternNode | GetDirectiveNode | NestedTraversalNode | FallbackBlockNode>;
+  body: BodyItemNode[];
   pageDirectives?: PageDirectiveNode;
 }
 

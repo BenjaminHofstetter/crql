@@ -202,6 +202,62 @@ export class App {
   @limit 10 ;
   @offset 20 ;
 }`
+    },
+    {
+      id: 'values-subselect',
+      title: '8. SPARQL VALUES & Sub-SELECTs in Mixins',
+      description: 'Constrain variable values and execute sub-queries directly inside mixins and rule blocks.',
+      code: `@prefix ex: <http://example.org/>;
+@prefix psm: <http://example.org/psm/>;
+@prefix appPrefix: <http://example.org/app/>;
+@prefix ui: <http://example.org/ui/>;
+
+/* Reusable Mixin with SPARQL VALUES constraint */
+@mixin --permissionType {
+  VALUES ?productType {
+    psm:ParallelImport
+    psm:SalePermission
+    psm:RegularProduct
+  }
+  a => appPrefix:permissionType ?productType ;
+}
+
+/* Reusable Mixin with SPARQL Sub-SELECT Aggregation */
+@mixin --reviewStats {
+  {
+    SELECT ?focusNode (COUNT(?review) AS ?reviewCount) WHERE {
+      ?focusNode ex:hasReview ?review .
+    }
+    GROUP BY ?focusNode
+  }
+  ex:reviewCount => ui:totalReviews ?reviewCount ;
+}
+
+@custom-selector :--catalogProducts {
+  ?focusNode a ex:Product .
+}
+
+:--catalogProducts {
+  ex:name ?productName ;
+  @get --permissionType ;
+  @get --reviewStats ;
+}`
+    },
+    {
+      id: 'bind-selector',
+      title: '9. BIND(...) Expressions & IRI Focus Nodes',
+      description: 'Bind specific IRIs or dynamic expressions to ?focusNode inside custom selectors.',
+      code: `@prefix schema: <https://schema.org/>;
+@prefix ex: <http://example.org/>;
+
+@custom-selector :--PlantProtectionProduct {
+  BIND (<https://agriculture.ld.admin.ch/plant-protection/product/D-7463> as ?focusNode )
+}
+
+:--PlantProtectionProduct {
+  schema:name ?name ;
+  ex:registrationStatus ?status ;
+}`
     }
   ];
 
